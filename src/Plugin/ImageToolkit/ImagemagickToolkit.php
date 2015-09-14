@@ -305,8 +305,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
       $error = NULL;
       $this->addArgument('-version');
       $this->imagemagickExec($command, $status['output'], $error, $path);
-      // ::imagemagickExec() triggers a user error upon failure, but
-      // during form validation all errors need to be reported.
       if ($error !== '') {
         // $error normally needs check_plain(), but file system errors on
         // Windows use a unknown encoding. check_plain() would eliminate the
@@ -877,9 +875,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
         }
       }
 
-      // If ImageMagick returned a non-zero code, trigger a PHP error that will
-      // be caught by Drupal's error handler, logged to the watchdog and
-      // eventually displayed to the user if configured to do so.
+      // If ImageMagick returned a non-zero code, log to the watchdog.
       if ($return_code != 0) {
         // If there is no error message, clarify this.
         if ($error === '') {
@@ -890,12 +886,11 @@ class ImagemagickToolkit extends ImageToolkitBase {
           '@code' => $return_code,
           '!error' => $error,
         ));
-        // @todo Use watchdog() instead? Would hide errors from users during
-        //   normal operation, regeardless of error_level setting.
-        trigger_error($error, E_USER_ERROR);
+        $this->logger->error($error);
         // ImageMagick exited with an error code, return it.
         return $return_code;
       }
+
       // The shell command was executed successfully.
       return TRUE;
     }
