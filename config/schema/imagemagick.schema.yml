@@ -2,7 +2,7 @@
 
 # Schema for settings.
 imagemagick.settings:
-  type: mapping
+  type: config_object
   label: 'Imagemagick settings'
   mapping:
     quality:
