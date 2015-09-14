@@ -269,7 +269,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   - errors: A list of error messages indicating whether ImageMagick could
    *     not be found or executed.
    */
-  protected function checkPath($path) {
+  public function checkPath($path) {
     $status = array(
       'output' => '',
       'errors' => array(),

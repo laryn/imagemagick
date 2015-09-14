@@ -77,7 +77,15 @@ class ToolkitImagemagickTest extends WebTestBase {
    * {@inheritdoc}
    */
   protected function checkRequirements() {
-    // @todo
+    // The test can only be executed if the ImageMagick 'convert' is
+    // available on the shell path.
+    $toolkit = \Drupal::service('image.toolkit.manager')->createInstance('imagemagick');
+    $status = $toolkit->checkPath('');
+    if (!empty($status['errors'])) {
+      $ret = $status['errors'];
+      $ret[] = 'Image manipulations for the Imagemagick toolkit cannot run because the \'convert\' executable is not available.';
+      return $ret;
+    }
     return parent::checkRequirements();
   }
 
