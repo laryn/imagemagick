@@ -4,9 +4,9 @@
 Provides ImageMagick integration.
 
 For a full description of the module, visit the project page:
-  http://drupal.org/project/imagemagick
+  https://drupal.org/project/imagemagick
 To submit bug reports and feature suggestions, or to track changes:
-  http://drupal.org/project/issues/imagemagick
+  https://drupal.org/project/issues/imagemagick
 
 
 -- REQUIREMENTS --
@@ -23,7 +23,7 @@ these requirements.
 
 -- INSTALLATION --
 
-* Install as usual, see http://drupal.org/node/70151 for further information.
+* Install as usual, see https://drupal.org/node/70151 for further information.
 
 
 -- CONFIGURATION --
@@ -32,12 +32,12 @@ these requirements.
   image toolkit to ImageMagick.
 
 * If the convert binary cannot be found in the default shell path, you need to
-  enter the full path to ImageMagick's convert executable, including the
-  filename itself.
+  enter the path to ImageMagick's executables.
 
 
 -- CONTACT --
 
 Current maintainers:
-* Daniel F. Kudwien (sun) - http://drupal.org/user/54136
-
+* Daniel F. Kudwien 'sun' - https://www.drupal.org/u/sun
+* 'mondrake' - https://www.drupal.org/u/mondrake - for the Drupal 8 branch
+  only.

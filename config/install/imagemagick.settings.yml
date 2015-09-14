@@ -1,0 +1,10 @@
+quality: 75
+path_to_binaries: ''
+prepend: ''
+debug: FALSE
+gm: FALSE
+use_identify: TRUE
+advanced:
+  density: 0
+  colorspace: '0'
+  profile: ''

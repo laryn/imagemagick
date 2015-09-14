@@ -1,0 +1,38 @@
+# Imagemagick module schema
+
+# Schema for settings.
+imagemagick.settings:
+  type: mapping
+  label: 'Imagemagick settings'
+  mapping:
+    quality:
+      type: integer
+      label: 'Image quality'
+    path_to_binaries:
+      type: string
+      label: 'Path to the ImageMagick binaries'
+    prepend:
+      type: string
+      label: 'Prepend arguments'
+    debug:
+      type: boolean
+      label: 'Display debugging information'
+    gm:
+      type: boolean
+      label: 'Enable GraphicsMagick support'
+    use_identify:
+      type: boolean
+      label: 'Use identify command'
+    advanced:
+      type: mapping
+      label: 'Imagemagick advanced settings'
+      mapping:
+        density:
+          type: integer
+          label: 'Image resolution'
+        colorspace:
+          type: string
+          label: 'Convert colorspace'
+        profile:
+          type: string
+          label: 'Color profile path'
