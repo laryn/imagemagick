@@ -757,15 +757,8 @@ class ImagemagickToolkit extends ImageToolkitBase {
     $command = $this->configFactory->get('imagemagick.settings')->get('gm') ? 'gm' : 'convert';
     $this->moduleHandler->alter('imagemagick_arguments', $this, $command);
 
-    // If the format of the derivative image was changed, concatenate the new
-    // image format and the destination path, delimited by a colon.
-    // @see http://www.imagemagick.org/script/command-line-processing.php#output
-    // @see hook_imagemagick_arguments_alter()
-    if (($format = $this->getDestinationFormat()) !== '') {
-      $this->setDestinationLocalPath($format . ':' . $this->getDestinationLocalPath());
-    }
-
-    return $this->imagemagickExec($command) ? file_exists($this->getDestinationLocalPath()) : FALSE;
+    // Execute the 'convert' or 'gm' command.
+    return $this->imagemagickExec($command) === TRUE ? file_exists($this->getDestinationLocalPath()) : FALSE;
   }
 
   /**
@@ -815,6 +808,12 @@ class ImagemagickToolkit extends ImageToolkitBase {
     }
     if ($destination_path = $this->getDestinationLocalPath()) {
       $destination_path = $this->escapeShellArg($destination_path);
+      // If the format of the derivative image has to be changed, concatenate
+      // the new image format and the destination path, delimited by a colon.
+      // @see http://www.imagemagick.org/script/command-line-processing.php#output
+      if (($format = $this->getDestinationFormat()) !== '') {
+        $destination_path = $format . ':' . $destination_path;
+      }
     }
 
     switch($command) {
