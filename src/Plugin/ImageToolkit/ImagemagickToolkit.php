@@ -80,11 +80,11 @@ class ImagemagickToolkit extends ImageToolkitBase {
   protected $sourceFormat = '';
 
   /**
-   * The source image EXIF orientation.
+   * Keeps a copy of source image EXIF information.
    *
-   * @var string
+   * @var array
    */
-  protected $exifOrientation = NULL;
+  protected $exifInfo = [];
 
   /**
    * The image destination URI/path on saving.
@@ -404,7 +404,10 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   The source EXIF orientation.
    */
   public function getExifOrientation() {
-    return $this->exifOrientation;
+    if (empty($this->exifInfo)) {
+      $this->parseExifData();
+    }
+    return isset($this->exifInfo['Orientation']) ? $this->exifInfo['Orientation'] : NULL;
   }
 
   /**
@@ -416,7 +419,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @return $this
    */
   public function setExifOrientation($exif_orientation) {
-    $this->exifOrientation = (int) $exif_orientation;
+    $this->exifInfo['Orientation'] = !empty($exif_orientation) ? ((int) $exif_orientation !== 0 ? (int) $exif_orientation : NULL) : NULL;
     return $this;
   }
 
@@ -726,6 +729,37 @@ class ImagemagickToolkit extends ImageToolkitBase {
       return TRUE;
     }
     return FALSE;
+  }
+
+  /**
+   * Parses the image file EXIF data using the PHP read_exif_data() function.
+   *
+   * @return $this
+   */
+  protected function parseExifData() {
+    $continue = TRUE;
+    // Test to see if EXIF is supported by the image format.
+    $mime_type = $this->getMimeType();
+    if (!in_array($mime_type, ['image/jpeg', 'image/tiff'])) {
+      // Not an EXIF enabled image.
+      $continue = FALSE;
+    }
+    $local_path = $this->getSourceLocalPath();
+    if ($continue && empty($local_path)) {
+      // No file path available. Most likely a new image from scratch.
+      $continue = FALSE;
+    }
+    if ($continue && !function_exists('exif_read_data')) {
+      // No PHP EXIF extension enabled, return.
+      $this->logger->error('The PHP EXIF extension is not installed. The \'imagemagick\' toolkit is unable to automatically determine image orientation.');
+      $continue = FALSE;
+    }
+    if ($continue && ($exif_data = @exif_read_data($this->getSourceLocalPath()))) {
+      $this->exifInfo = $exif_data;
+      return $this;
+    }
+    $this->setExifOrientation(NULL);
+    return $this;
   }
 
   /**

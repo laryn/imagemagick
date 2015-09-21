@@ -25,6 +25,13 @@ class ToolkitImagemagickTest extends WebTestBase {
    */
   protected $imageFactory;
 
+  /**
+   * A directory for image test file results.
+   *
+   * @var string
+   */
+  protected $testDirectory;
+
   // Colors that are used in testing.
   protected $black       = array(0, 0, 0, 0);
   protected $red         = array(255, 0, 0, 0);
@@ -71,6 +78,10 @@ class ToolkitImagemagickTest extends WebTestBase {
     // Set the toolkit on the image factory.
     $this->imageFactory = $this->container->get('image.factory');
     $this->imageFactory->setToolkitId('imagemagick');
+
+    // Prepare a directory for test file results.
+    $this->testDirectory = 'public://imagetest';
+    file_prepare_directory($this->testDirectory, FILE_CREATE_DIRECTORY);
   }
 
   /**
@@ -114,7 +125,7 @@ class ToolkitImagemagickTest extends WebTestBase {
    * properly, build a list of expected color values for each of the corners and
    * the expected height and widths for the final images.
    */
-  protected function testManipulations() {
+  public function testManipulations() {
     // Test that the image factory is set to use the Imagemagick toolkit.
     $this->assertEqual($this->imageFactory->getToolkitId(), 'imagemagick', 'The image factory is set to use the \'imagemagick\' image toolkit.');
 
@@ -269,10 +280,6 @@ class ToolkitImagemagickTest extends WebTestBase {
       ),
     );
 
-    // Prepare a directory for test file results.
-    $directory = 'public://imagetest';
-    file_prepare_directory($directory, FILE_CREATE_DIRECTORY);
-
     // Prepare a copy of test files.
     $this->drupalGetTestFiles('image');
 
@@ -289,7 +296,7 @@ class ToolkitImagemagickTest extends WebTestBase {
         $image->apply($values['function'], $values['arguments']);
 
         // Save image.
-        $file_path = $directory . '/' . $op . substr($file, -4);
+        $file_path = $this->testDirectory . '/' . $op . substr($file, -4);
         $image->save($file_path);
 
         // Reload with GD to be able to check results at pixel level.
@@ -369,7 +376,7 @@ class ToolkitImagemagickTest extends WebTestBase {
       $image = $this->imageFactory->get();
       $image->createNew(50, 20, image_type_to_extension($type, FALSE), '#ffff00');
       $file = 'from_null' . image_type_to_extension($type);
-      $file_path = $directory . '/' . $file;
+      $file_path = $this->testDirectory . '/' . $file;
       $this->assertEqual(50, $image->getWidth(), SafeMarkup::format('Image file %file has the correct width.', array('%file' => $file)));
       $this->assertEqual(20, $image->getHeight(), SafeMarkup::format('Image file %file has the correct height.', array('%file' => $file)));
       $this->assertEqual(image_type_to_mime_type($type), $image->getMimeType(), SafeMarkup::format('Image file %file has the correct MIME type.', array('%file' => $file)));
@@ -404,6 +411,7 @@ class ToolkitImagemagickTest extends WebTestBase {
     $this->assertTrue($image->isValid(), 'CreateNew with valid arguments validates the Image.');
 
     // Test saving image files with filenames having non-ascii characters.
+
     $file_names = [
       'greek εικόνα δοκιμής.png',
       'russian Тестовое изображение.png',
@@ -419,10 +427,53 @@ class ToolkitImagemagickTest extends WebTestBase {
       'viet "with double quotes" hình ảnh thử nghiệm.png',
     ];
     foreach ($file_names as $file) {
-      $file_path = $directory . '/' . $file;
+      $file_path = $this->testDirectory . '/' . $file;
       $image->save($file_path);
       $image_reloaded = $this->imageFactory->get($file_path);
       $this->assertTrue($image_reloaded->isValid(), SafeMarkup::format('Image file %file loaded successfully.', array('%file' => $file)));
     }
+
+    // Test retrieval of EXIF information.
+
+    // The image files that will be tested.
+    $image_files = [
+      [
+        'path' => drupal_get_path('module', 'imagemagick') . '/misc/test-exif.jpeg',
+        'orientation' => 8,
+      ],
+      [
+        'path' => 'public://image-test.jpg',
+        'orientation' => NULL,
+      ],
+      [
+        'path' => 'public://image-test.png',
+        'orientation' => NULL,
+      ],
+      [
+        'path' => 'public://image-test.gif',
+        'orientation' => NULL,
+      ],
+      [
+        'path' => NULL,
+        'orientation' => NULL,
+      ],
+    ];
+
+    foreach($image_files as $image_file) {
+      // Get image using 'identify'.
+      \Drupal::configFactory()->getEditable('imagemagick.settings')
+        ->set('use_identify', TRUE)
+        ->save();
+      $image = $this->imageFactory->get($image_file['path']);
+      $this->assertIdentical($image_file['orientation'], $image->getToolkit()->getExifOrientation());
+
+      // Get image using 'getimagesize'.
+      \Drupal::configFactory()->getEditable('imagemagick.settings')
+        ->set('use_identify', FALSE)
+        ->save();
+      $image = $this->imageFactory->get($image_file['path']);
+      $this->assertIdentical($image_file['orientation'], $image->getToolkit()->getExifOrientation());
+    }
   }
+
 }
