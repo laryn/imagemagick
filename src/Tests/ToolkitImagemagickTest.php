@@ -133,11 +133,10 @@ class ToolkitImagemagickTest extends WebTestBase {
     // available on the shell path.
     $status = \Drupal::service('image.toolkit.manager')->createInstance('imagemagick')->checkPath('');
     if (!empty($status['errors'])) {
-      // This pass is here only to allow automated test on d.o. not to set the
-      // entire branch to failure. Bots do not have ImageMagick installed, so
-      // there's no purpose to try and run this test there; it can be run
-      // locally where ImageMagick is installed.
-      $this->pass('Image manipulations for the Imagemagick toolkit cannot run because the \'convert\' executable is not available.');
+      // Bots running automated test on d.o. do not have ImageMagick
+      // installed, so there's no purpose to try and run this test there;
+      // it can be run locally where ImageMagick is installed.
+      debug('Tests for the Imagemagick toolkit cannot run because the \'convert\' executable is not available on the shell path.');
       return;
     }
 
