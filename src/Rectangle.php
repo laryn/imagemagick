@@ -20,41 +20,45 @@ namespace Drupal\imagemagick;
  * This prevents predictability of the final image size for instance by the
  * image rotate effect, and by the image toolkit rotate operation.
  *
- * Here we are using an algorithm that produces the same results as PHP 5.4.
+ * Here we are using an algorithm that produces the same results as PHP 5.5+
  *
- * @todo drop this if the class gets in Drupal core, see #1551686-23
+ * @todo drop this if the class gets in Drupal core, see #1551686
  */
 class Rectangle {
+  /**
+   * The width of the rectangle.
+   *
+   * @var int
+   */
+  protected $width;
 
   /**
-   * An array of point coordinates, keyed by an id.
+   * The height of the rectangle.
    *
-   * Canonical points are:
-   * 'c_a' - bottom left corner of the rectangle
-   * 'c_b' - bottom right corner of the rectangle
-   * 'c_c' - top right corner of the rectangle
-   * 'c_d' - top left corner of the rectangle
-   * 'o_a' - bottom left corner of the bounding rectangle, once the rectangle
-   *         is rotated
-   * 'o_c' - top right corner of the bounding rectangle, once the rectangle
-   *         is rotated
-   *
-   *   c_d +-----------------+ c_c
-   *       |                 |
-   *       |                 |
-   *   c_a +-----------------+ c_b
-   *
-   *
-   *       +-----------------+--+ o_c
-   *       |               c_c  |
-   *       + c_d                |
-   *       |                c_b +
-   *       |  c_a               |
-   *   o_a +--+-----------------+
-   *
-   * @var array
+   * @var int
    */
-  protected $points = [];
+  protected $height;
+
+  /**
+   * The width of the rotated rectangle.
+   *
+   * @var int
+   */
+  protected $boundingWidth;
+
+  /**
+   * The height of the rotated rectangle.
+   *
+   * @var int
+   */
+  protected $boundingHeight;
+
+  /**
+   * The imprecision factor to use for calculations.
+   *
+   * @var float
+   */
+  protected $imprecision = -0.00001;
 
   /**
    * Constructs a new Rectangle object.
@@ -65,31 +69,74 @@ class Rectangle {
    *   The height of the rectangle.
    */
   public function __construct($width, $height) {
-    if ($width !== 0 && $height !== 0) {
-      $this
-        ->setPoint('c_a', [0, 0])
-        ->setPoint('c_b', [$width, 0])
-        ->setPoint('c_c', [$width, $height])
-        ->setPoint('c_d', [0, $height])
-        ->setPoint('o_a', [0, 0])
-        ->setPoint('o_c', [$width, $height]);
+    if ($width >= 0 && $height >= 0) {
+      $this->width = $width;
+      $this->height = $height;
+      $this->boundingWidth = $width;
+      $this->boundingHeight = $height;
     }
   }
 
   /**
-   * Rotates the rectangle and any additional point.
+   * Rotates the rectangle.
    *
    * @param float $angle
    *   Rotation angle.
+   *
+   * @return $this
    */
   public function rotate($angle) {
-    if ($angle) {
-      foreach ($this->points as &$point) {
-        $this->rotatePoint($point, $angle);
-      }
-      $this->determineBoundingCorners();
+    // For rotations that are not multiple of 90 degrees, we need to match
+    // GD that uses C floats internally, whereas we at PHP level use C
+    // doubles. We correct that using an imprecision. Also, we need to
+    // introduce a correction factor of 0.5 to match the GD algorithm used
+    // in PHP 5.5+ to calculate the new width and height of the rotated
+    // image.
+    if ($angle % 90 === 0) {
+      $imprecision = 0;
+      $correction = 0;
     }
+    else {
+      $imprecision = $this->imprecision;
+      $correction = 0.5;
+    }
+
+    // Do the necessary trigonometry.
+    $rad = deg2rad($angle);
+    $cos = cos($rad);
+    $sin = sin($rad);
+    $sinImprecision = $sin < 0 ? -$imprecision : $imprecision;
+    $cosImprecision = $cos < 0 ? -$imprecision : $imprecision;
+    $a = $this->fixImprecision($this->width * $cos + $cosImprecision, $cosImprecision);
+    $b = $this->fixImprecision($this->height * $sin + $correction + $sinImprecision, $sinImprecision);
+    $c = $this->fixImprecision($this->width * $sin + $sinImprecision, $sinImprecision);
+    $d = $this->fixImprecision($this->height * $cos + $correction + $cosImprecision, $cosImprecision);
+
+    // This is how GD on PHP5.5 calculates the new dimensions.
+    $this->boundingWidth = abs((int) $a) + abs((int) $b);
+    $this->boundingHeight = abs((int) $c) + abs((int) $d);
+
     return $this;
+  }
+
+  /**
+   * Performs an imprecision check on the input value and fixes it.
+   *
+   * GD that uses C floats internally, whereas we at PHP level use C doubles.
+   * We correct that using an imprecision.
+   *
+   * @param float $input
+   *   The input value resulting from an expression.
+   * @param float $imprecision
+   *   The imprecision factor.
+   *
+   * @return float
+   *   A fixed value, where input is substracted from input if the fraction
+   *   part of the value is lower than the imprecision.
+   */
+  protected function fixImprecision($input, $imprecision) {
+    $fraction = abs((1 - ((((int) $input) + 1) - ($input + 1))));
+    return $fraction < abs($imprecision) ? $input - $imprecision : $input;
   }
 
   /**
@@ -99,7 +146,7 @@ class Rectangle {
    *   The bounding width of the rotated rectangle.
    */
   public function getBoundingWidth() {
-    return (int) ceil($this->points['o_c'][0] - $this->points['o_a'][0] - 0.000001);
+    return $this->boundingWidth;
   }
 
   /**
@@ -109,65 +156,19 @@ class Rectangle {
    *   The bounding height of the rotated rectangle.
    */
   public function getBoundingHeight() {
-    return (int) ceil($this->points['o_c'][1] - $this->points['o_a'][1] - 0.000001);
+    return $this->boundingHeight;
   }
 
   /**
-   * Sets a point and its coordinates.
+   * Sets the imprecision to be used for calculations.
    *
-   * @param string $id
-   *   The point ID.
-   * @param array $coords
-   *   An array of x, y coordinates.
+   * @param float $imprecision
+   *   The imprecision to be used for calculations.
    *
    * @return $this
    */
-  protected function setPoint($id, array $coords = [0, 0]) {
-    $this->points[$id] = $coords;
-    return $this;
-  }
-
-  /**
-   * Rotates a point, by an offset and a rotation angle.
-   *
-   * @param array $point
-   *   An array of x, y coordinates.
-   * @param float $angle
-   *   Rotation angle.
-   *
-   * @return $this
-   */
-  protected function rotatePoint(array &$point, $angle) {
-    $rad = deg2rad($angle);
-    $sin = sin($rad);
-    $cos = cos($rad);
-    list($x, $y) = $point;
-    $point[0] = $x * $cos + $y * -$sin;
-    $point[1] = $y * $cos - $x * -$sin;
-    return $this;
-  }
-
-  /**
-   * Calculates the corners of the bounding rectangle.
-   *
-   * The bottom left ('o_a') and top right ('o_c') corners of the bounding
-   * rectangle of a rotated rectangle are needed to determine the bounding
-   * width and height.
-   *
-   * @return $this
-   */
-  protected function determineBoundingCorners() {
-    $this
-      ->setPoint('o_a', [
-          min($this->points['c_a'][0], $this->points['c_b'][0], $this->points['c_c'][0], $this->points['c_d'][0]),
-          min($this->points['c_a'][1], $this->points['c_b'][1], $this->points['c_c'][1], $this->points['c_d'][1])
-        ]
-      )
-      ->setPoint('o_c', [
-          max($this->points['c_a'][0], $this->points['c_b'][0], $this->points['c_c'][0], $this->points['c_d'][0]),
-          max($this->points['c_a'][1], $this->points['c_b'][1], $this->points['c_c'][1], $this->points['c_d'][1])
-        ]
-      );
+  public function setImprecision($imprecision) {
+    $this->imprecision = $imprecision;
     return $this;
   }
 

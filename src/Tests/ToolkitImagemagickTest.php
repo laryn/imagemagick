@@ -230,15 +230,15 @@ class ToolkitImagemagickTest extends WebTestBase {
       'rotate_5' => array(
         'function' => 'rotate',
         'arguments' => array('degrees' => 5, 'background' => '#FF00FF'), // Fuchsia background.
-        'width' => 42,
-        'height' => 24,
+        'width' => 41,
+        'height' => 23,
         'corners' => array_fill(0, 4, $this->fuchsia),
       ),
       'rotate_minus_10' => array(
         'function' => 'rotate',
         'arguments' => array('degrees' => -10, 'background' => '#FF00FF'), // Fuchsia background.
-        'width' => 43,
-        'height' => 27,
+        'width' => 41,
+        'height' => 26,
         'corners' => array_fill(0, 4, $this->fuchsia),
       ),
       'rotate_90' => array(
@@ -251,8 +251,8 @@ class ToolkitImagemagickTest extends WebTestBase {
       'rotate_transparent_5' => array(
         'function' => 'rotate',
         'arguments' => array('degrees' => 5),
-        'width' => 42,
-        'height' => 24,
+        'width' => 41,
+        'height' => 23,
         'corners' => array_fill(0, 4, $this->transparent),
       ),
       'rotate_transparent_90' => array(
