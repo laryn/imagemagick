@@ -7,7 +7,6 @@
 
 namespace Drupal\imagemagick\Tests;
 
-use Drupal\Component\Utility\SafeMarkup;
 use Drupal\Core\Image\ImageInterface;
 use Drupal\simpletest\WebTestBase;
 
@@ -287,7 +286,7 @@ class ToolkitImagemagickTest extends WebTestBase {
         // Load up a fresh image.
         $image = $this->imageFactory->get('public://' . $file);
         if (!$image->isValid()) {
-          $this->fail(SafeMarkup::format('Could not load image %file.', array('%file' => $file)));
+          $this->fail("Could not load image $file.");
           continue 2;
         }
 
@@ -304,7 +303,7 @@ class ToolkitImagemagickTest extends WebTestBase {
 
         // Check MIME type if needed.
         if (isset($values['mimetype'])) {
-          $this->assertEqual($values['mimetype'], $toolkit->getMimeType(), SafeMarkup::format('Image %file after %action action has proper MIME type (@mimetype).', array('%file' => $file, '%action' => $op, '@ew' => $values['width'], '@mimetype' => $values['mimetype'])));
+          $this->assertEqual($values['mimetype'], $toolkit->getMimeType(), "Image '$file' after '$op' action has proper MIME type ({$values['mimetype']}).");
         }
 
         // To keep from flooding the test with assert values, make a general
@@ -313,17 +312,21 @@ class ToolkitImagemagickTest extends WebTestBase {
         $correct_dimensions_object = TRUE;
 
         // Check the real dimensions of the image first.
-        if (imagesy($toolkit->getResource()) != $values['height'] || imagesx($toolkit->getResource()) != $values['width']) {
+        $actual_toolkit_width = imagesx($toolkit->getResource());
+        $actual_toolkit_height = imagesy($toolkit->getResource());
+        if ($actual_toolkit_height != $values['height'] || $actual_toolkit_width != $values['width']) {
           $correct_dimensions_real = FALSE;
         }
 
         // Check that the image object has an accurate record of the dimensions.
-        if ($image->getWidth() != $values['width'] || $image->getHeight() != $values['height']) {
+        $actual_image_width = $image->getWidth();
+        $actual_image_height = $image->getHeight();
+        if ($actual_image_width != $values['width'] || $actual_image_height != $values['height']) {
           $correct_dimensions_object = FALSE;
         }
 
-        $this->assertTrue($correct_dimensions_real, SafeMarkup::format('Image %file after %action action has proper dimensions. Expected @ewx@eh, actual @awx@ah.', array('%file' => $file, '%action' => $op, '@ew' => $values['width'], '@eh' => $values['height'], '@aw' => imagesx($toolkit->getResource()), '@ah' => imagesy($toolkit->getResource()))));
-        $this->assertTrue($correct_dimensions_object, SafeMarkup::format('Image %file object after %action action is reporting the proper height and width values.  Expected @ewx@eh, actual @awx@ah.', array('%file' => $file, '%action' => $op, '@ew' => $values['width'], '@eh' => $values['height'], '@aw' => imagesx($toolkit->getResource()), '@ah' => imagesy($toolkit->getResource()))));
+        $this->assertTrue($correct_dimensions_real, "Image '$file' after '$op' action has proper dimensions. Expected {$values['width']}x{$values['height']}, actual {$actual_toolkit_width}x{$actual_toolkit_height}.");
+        $this->assertTrue($correct_dimensions_object, "Image '$file' object after '$op' action is reporting the proper height and width values.  Expected {$values['width']}x{$values['height']}, actual {$actual_image_width}x{$actual_image_height}.");
 
         // JPEG colors will always be messed up due to compression.
         if ($image->getToolkit()->getType() != IMAGETYPE_JPEG) {
@@ -364,7 +367,7 @@ class ToolkitImagemagickTest extends WebTestBase {
             }
             $color = $this->getPixelColor($image, $x, $y);
             $correct_colors = $this->colorsAreEqual($color, $corner);
-            $this->assertTrue($correct_colors, SafeMarkup::format('Image %file object after %action action has the correct color placement at corner %corner.', array('%file' => $file, '%action' => $op, '%corner' => $key)));
+            $this->assertTrue($correct_colors, "Image '$file' object after '$op' action has the correct color placement at corner $key.");
           }
         }
       }
@@ -376,25 +379,25 @@ class ToolkitImagemagickTest extends WebTestBase {
       $image->createNew(50, 20, image_type_to_extension($type, FALSE), '#ffff00');
       $file = 'from_null' . image_type_to_extension($type);
       $file_path = $this->testDirectory . '/' . $file;
-      $this->assertEqual(50, $image->getWidth(), SafeMarkup::format('Image file %file has the correct width.', array('%file' => $file)));
-      $this->assertEqual(20, $image->getHeight(), SafeMarkup::format('Image file %file has the correct height.', array('%file' => $file)));
-      $this->assertEqual(image_type_to_mime_type($type), $image->getMimeType(), SafeMarkup::format('Image file %file has the correct MIME type.', array('%file' => $file)));
-      $this->assertTrue($image->save($file_path), SafeMarkup::format('Image %file created anew from a null image was saved.', array('%file' => $file)));
+      $this->assertEqual(50, $image->getWidth(), "Image file '$file' has the correct width.");
+      $this->assertEqual(20, $image->getHeight(), "Image file '$file' has the correct height.");
+      $this->assertEqual(image_type_to_mime_type($type), $image->getMimeType(), "Image file '$file' has the correct MIME type.");
+      $this->assertTrue($image->save($file_path), "Image '$file' created anew from a null image was saved.");
 
       // Reload saved image.
       $image_reloaded = $this->imageFactory->get($file_path, 'gd');
       if (!$image_reloaded->isValid()) {
-        $this->fail(SafeMarkup::format('Could not load image %file.', array('%file' => $file)));
+        $this->fail("Could not load image '$file'.");
         continue;
       }
-      $this->assertEqual(50, $image_reloaded->getWidth(), SafeMarkup::format('Image file %file has the correct width.', array('%file' => $file)));
-      $this->assertEqual(20, $image_reloaded->getHeight(), SafeMarkup::format('Image file %file has the correct height.', array('%file' => $file)));
-      $this->assertEqual(image_type_to_mime_type($type), $image_reloaded->getMimeType(), SafeMarkup::format('Image file %file has the correct MIME type.', array('%file' => $file)));
+      $this->assertEqual(50, $image_reloaded->getWidth(), "Image file '$file' has the correct width.");
+      $this->assertEqual(20, $image_reloaded->getHeight(), "Image file '$file' has the correct height.");
+      $this->assertEqual(image_type_to_mime_type($type), $image_reloaded->getMimeType(), "Image file '$file' has the correct MIME type.");
       if ($image_reloaded->getToolkit()->getType() == IMAGETYPE_GIF) {
-        $this->assertEqual('#ffff00', $image_reloaded->getToolkit()->getTransparentColor(), SafeMarkup::format('Image file %file has the correct transparent color channel set.', array('%file' => $file)));
+        $this->assertEqual('#ffff00', $image_reloaded->getToolkit()->getTransparentColor(), "Image file '$file' has the correct transparent color channel set.");
       }
       else {
-        $this->assertEqual(NULL, $image_reloaded->getToolkit()->getTransparentColor(), SafeMarkup::format('Image file %file has no color channel set.', array('%file' => $file)));
+        $this->assertEqual(NULL, $image_reloaded->getToolkit()->getTransparentColor(), "Image file '$file' has no color channel set.");
       }
     }
 
@@ -429,7 +432,7 @@ class ToolkitImagemagickTest extends WebTestBase {
       $file_path = $this->testDirectory . '/' . $file;
       $image->save($file_path);
       $image_reloaded = $this->imageFactory->get($file_path);
-      $this->assertTrue($image_reloaded->isValid(), SafeMarkup::format('Image file %file loaded successfully.', array('%file' => $file)));
+      $this->assertTrue($image_reloaded->isValid(), "Image file '$file' loaded successfully.");
     }
 
     // Test retrieval of EXIF information.
