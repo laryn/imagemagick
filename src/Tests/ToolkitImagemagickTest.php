@@ -290,6 +290,9 @@ class ToolkitImagemagickTest extends WebTestBase {
           continue 2;
         }
 
+        // Check that no multi-frame information is set.
+        $this->assertNull($image->getToolkit()->getFrames());
+
         // Perform our operation.
         $image->apply($values['function'], $values['arguments']);
 
@@ -475,6 +478,59 @@ class ToolkitImagemagickTest extends WebTestBase {
         ->save();
       $image = $this->imageFactory->get($image_file['path']);
       $this->assertIdentical($image_file['orientation'], $image->getToolkit()->getExifOrientation());
+    }
+
+    // Test multi-frame GIF image.
+
+    // The image files that will be tested.
+    $image_files = [
+      [
+        'source' => drupal_get_path('module', 'imagemagick') . '/misc/test-multi-frame.gif',
+        'destination' => $this->testDirectory . '/test-multi-frame.gif',
+        'width' => 60,
+        'height' => 29,
+        'frames' => 13,
+        'scaled_width' => 30,
+        'scaled_height' => 15,
+        'rotated_width' => 33,
+        'rotated_height' => 26,
+      ],
+    ];
+
+    foreach($image_files as $image_file) {
+      // Get image using 'identify'.
+      \Drupal::configFactory()->getEditable('imagemagick.settings')
+        ->set('use_identify', TRUE)
+        ->save();
+      $image = $this->imageFactory->get($image_file['source']);
+      $this->assertIdentical($image_file['width'], $image->getWidth());
+      $this->assertIdentical($image_file['height'], $image->getHeight());
+      $this->assertIdentical($image_file['frames'], $image->getToolkit()->getFrames());
+
+      // Scaling should preserve frames.
+      $image->scale(30);
+      $image->save($image_file['destination']);
+      $image = $this->imageFactory->get($image_file['destination']);
+      $this->assertIdentical($image_file['scaled_width'], $image->getWidth());
+      $this->assertIdentical($image_file['scaled_height'], $image->getHeight());
+      $this->assertIdentical($image_file['frames'], $image->getToolkit()->getFrames());
+
+      // Rotating should preserve frames.
+      $image->rotate(24);
+      $image->save($image_file['destination']);
+      $image = $this->imageFactory->get($image_file['destination']);
+      $this->assertIdentical($image_file['rotated_width'], $image->getWidth());
+      $this->assertIdentical($image_file['rotated_height'], $image->getHeight());
+      $this->assertIdentical($image_file['frames'], $image->getToolkit()->getFrames());
+
+      // Converting to PNG should drop frames.
+      $image->convert('png');
+      $this->assertNull($image->getToolkit()->getFrames());
+      $image->save($image_file['destination']);
+      $image = $this->imageFactory->get($image_file['destination']);
+      $this->assertIdentical($image_file['rotated_width'], $image->getWidth());
+      $this->assertIdentical($image_file['rotated_height'], $image->getHeight());
+      $this->assertNull($image->getToolkit()->getFrames());
     }
   }
 

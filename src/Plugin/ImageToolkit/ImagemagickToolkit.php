@@ -73,6 +73,13 @@ class ImagemagickToolkit extends ImageToolkitBase {
   protected $height;
 
   /**
+   * The number of frames of the image, for multi-frame images (e.g. GIF).
+   *
+   * @var int
+   */
+  protected $frames;
+
+  /**
    * The local filesystem path to the source image file.
    *
    * @var string
@@ -451,6 +458,29 @@ class ImagemagickToolkit extends ImageToolkitBase {
   }
 
   /**
+   * Gets the source image number of frames.
+   *
+   * @return integer
+   *   The number of frames of the image.
+   */
+  public function getFrames() {
+    return $this->frames;
+  }
+
+  /**
+   * Sets the source image number of frames.
+   *
+   * @param integer|null $frames
+   *   The number of frames of the image.
+   *
+   * @return $this
+   */
+  public function setFrames($frames) {
+    $this->frames = $frames;
+    return $this;
+  }
+
+  /**
    * Gets the image destination URI/path on saving.
    *
    * @return string
@@ -719,11 +749,24 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   TRUE if the file could be found and is an image, FALSE otherwise.
    */
   protected function parseFileViaIdentify() {
-    $this->addArgument('-format ' . $this->escapeShellArg('format:%m|width:%w|height:%h|exif_orientation:%[EXIF:Orientation]'));
+    $this->addArgument('-format ' . $this->escapeShellArg("format:%m|width:%w|height:%h|exif_orientation:%[EXIF:Orientation]\n"));
     if ($identify_output = $this->identify()) {
-      $identify_output = explode('|', $identify_output);
+      $frames = explode("\n", $identify_output);
+
+      // Remove empty items at the end of the array.
+      while (empty($frames[count($frames) - 1])) {
+        array_pop($frames);
+      }
+
+      // If remaining items are more than one, we have a multi-frame image.
+      if (count($frames) > 1) {
+        $this->setFrames(count($frames));
+      }
+
+      // Take information from the first frame.
+      $info = explode('|', $frames[0]);
       $data = [];
-      foreach ($identify_output as $item) {
+      foreach ($info as $item) {
         list($key, $value) = explode(':', $item);
         $data[$key] = $value;
       }
@@ -731,8 +774,8 @@ class ImagemagickToolkit extends ImageToolkitBase {
       if ($format && in_array($format, static::getSupportedExtensions())) {
         $this
           ->setSourceFormat($format)
-          ->setWidth($data['width'])
-          ->setHeight($data['height'])
+          ->setWidth((int) $data['width'])
+          ->setHeight((int) $data['height'])
           ->setExifOrientation($data['exif_orientation']);
         return TRUE;
       }

@@ -86,6 +86,7 @@ class CreateNew extends ImagemagickImageToolkitOperationBase {
       ->setWidth($arguments['width'])
       ->setHeight($arguments['height'])
       ->setExifOrientation(NULL)
+      ->setFrames(NULL)
       ->addArgument('-size ' . $arguments['width'] . 'x' . $arguments['height'] . ' xc:transparent');
     if ($arguments['extension'] == 'gif') {
       $this->getToolkit()->addArgument('-transparent-color ' . $this->getToolkit()->escapeShellArg($arguments['transparent_color']));
