@@ -7,14 +7,14 @@
 
 namespace Drupal\imagemagick\Plugin\ImageToolkit;
 
-use Drupal\Component\Utility\Image as ImageUtility;
-use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\ImageToolkit\ImageToolkitBase;
 use Drupal\Core\ImageToolkit\ImageToolkitOperationManagerInterface;
+use Drupal\Core\Routing\UrlGeneratorInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface;
@@ -43,6 +43,13 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @var \Drupal\Core\Extension\ModuleHandlerInterface
    */
   protected $moduleHandler;
+
+  /**
+   * The URL generator.
+   *
+   * @var \Drupal\Core\Routing\UrlGeneratorInterface
+   */
+  protected $urlGenerator;
 
   /**
    * The array of command line arguments to be used by 'convert'.
@@ -126,12 +133,15 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   The MIME type guessing service.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler service.
+   * @param \Drupal\Core\Routing\UrlGeneratorInterface $url_generator
+   *   The URL generator.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ImageToolkitOperationManagerInterface $operation_manager, LoggerInterface $logger, ConfigFactoryInterface $config_factory, MimeTypeGuesserInterface $mime_type_guesser, ModuleHandlerInterface $module_handler) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ImageToolkitOperationManagerInterface $operation_manager, LoggerInterface $logger, ConfigFactoryInterface $config_factory, MimeTypeGuesserInterface $mime_type_guesser, ModuleHandlerInterface $module_handler, UrlGeneratorInterface $url_generator) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $operation_manager, $logger, $config_factory);
     // @todo change if extension mapping service gets in, see #2311679
     $this->mimeTypeGuesser = $mime_type_guesser;
     $this->moduleHandler = $module_handler;
+    $this->urlGenerator = $url_generator;
   }
 
   /**
@@ -146,7 +156,8 @@ class ImagemagickToolkit extends ImageToolkitBase {
       $container->get('logger.channel.image'),
       $container->get('config.factory'),
       $container->get('file.mime_type.guesser.extension'),
-      $container->get('module_handler')
+      $container->get('module_handler'),
+      $container->get('url_generator')
     );
   }
 
@@ -254,6 +265,22 @@ class ImagemagickToolkit extends ImageToolkitBase {
       )),
     );
 
+    // Version information.
+    $status = $this->checkPath($config->get('path_to_binaries'));
+    if (empty($status['errors'])) {
+      $version_info = explode("\n", preg_replace('/\r/', '', Html::escape($status['output'])));
+    }
+    else {
+      $version_info = $status['errors'];
+    }
+    $form['version'] = [
+      '#type' => 'details',
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      '#title' => $this->t('ImageMagick version information'),
+      '#description' => '<kbd>' . implode('<br />', $version_info) . '</kbd>',
+    ];
+
     return $form;
   }
 
@@ -284,19 +311,19 @@ class ImagemagickToolkit extends ImageToolkitBase {
     if ($path != 'convert' && $path != 'gm') {
       // Check whether the given file exists.
       if (!is_file($path)) {
-        $status['errors'][] = $this->t('The specified ImageMagick binary %file does not exist.', array('%file' => $path));
+        $status['errors'][] = $this->t('The ImageMagick binary %file does not exist.', array('%file' => $path));
       }
       // If it exists, check whether we can execute it.
       elseif (!is_executable($path)) {
-        $status['errors'][] = $this->t('The specified ImageMagick binary %file is not executable.', array('%file' => $path));
+        $status['errors'][] = $this->t('The ImageMagick binary %file is not executable.', array('%file' => $path));
       }
     }
 
     // In case of errors, check for open_basedir restrictions.
     if ($status['errors'] && ($open_basedir = ini_get('open_basedir'))) {
-      $status['errors'][] = $this->t('The PHP <a href="@php-url">open_basedir</a> security restriction is set to %open-basedir, which may prevent to locate ImageMagick.', array(
+      $status['errors'][] = $this->t('The PHP <a href=":php-url">open_basedir</a> security restriction is set to %open-basedir, which may prevent to locate ImageMagick.', array(
         '%open-basedir' => $open_basedir,
-        '@php-url' => 'http://php.net/manual/en/ini.core.php#ini.open-basedir',
+        ':php-url' => 'http://php.net/manual/en/ini.core.php#ini.open-basedir',
       ));
     }
 
@@ -936,26 +963,40 @@ class ImagemagickToolkit extends ImageToolkitBase {
    */
   public function getRequirements() {
     $path = $this->configFactory->get('imagemagick.settings')->get('path_to_binaries');
-    $requirements = array();
     $status = $this->checkPath($path);
+    $requirements = [];
+    $reported_info = [];
     if (!empty($status['errors'])) {
-      foreach ($status['errors'] as $id => $error) {
-        $requirements['imagemagick_path_' . $id] = array(
-          'title' => $this->t('ImageMagick'),
-          'value' => $this->t('Path error'),
-          'description' => $error,
-          'severity' => REQUIREMENT_ERROR,
-        );
+      $severity = REQUIREMENT_ERROR;
+      foreach ($status['errors'] as $error) {
+        $reported_info[] = $error;
       }
+      $reported_info[] = $this->t('Go to the <a href=":url">Image toolkit</a> page to configure the toolkit.', [':url' => $this->urlGenerator->generateFromRoute('system.image_toolkit_settings')]);
     }
     else {
-      $output = preg_replace('/\n/', '<br/>', $status['output']);
-      $requirements['imagemagick_version'] = array(
-        'title' => $this->t('ImageMagick'),
-        'description' => SafeMarkup::format($output),
-        'severity' => REQUIREMENT_INFO,
-      );
+      // No errors, report the Imagemagick version in use.
+      $severity = REQUIREMENT_INFO;
+      $version_info = explode("\n", preg_replace('/\r/', '', Html::escape($status['output'])));
+      $more_info_available = FALSE;
+      foreach ($version_info as $key => $item) {
+        if (stripos($item, 'feature') !== FALSE || $key > 4) {
+          $more_info_available = TRUE;
+          break;
+
+        }
+        $reported_info[] = $item;
+      }
+      if ($more_info_available) {
+        $reported_info[] = $this->t('To display more information, go to the <a href=":url">Image toolkit</a> page, and expand the \'ImageMagick version information\' section.', [':url' => $this->urlGenerator->generateFromRoute('system.image_toolkit_settings')]);
+      }
     }
+    $requirements['imagemagick_version'] = [
+      'title' => $this->t('ImageMagick'),
+      'description' => [
+        '#markup' => implode('<br />', $reported_info),
+      ],
+      'severity' => $severity,
+    ];
     return $requirements;
   }
 
