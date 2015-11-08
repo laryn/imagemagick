@@ -985,9 +985,9 @@ class ImagemagickToolkit extends ImageToolkitBase {
           $error = $this->t('No error message.');
         }
         // Format $error with as full message, passed by reference.
-        $error = $this->t('ImageMagick error @code: !error', array(
+        $error = $this->t('ImageMagick error @code: @error', array(
           '@code' => $return_code,
-          '!error' => $error,
+          '@error' => $error,
         ));
         $this->logger->error($error);
         // ImageMagick exited with an error code, return it.
