@@ -1005,42 +1005,52 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * {@inheritdoc}
    */
   public function getRequirements() {
-    $path = $this->configFactory->get('imagemagick.settings')->get('path_to_binaries');
-    $status = $this->checkPath($path);
-    $requirements = [];
     $reported_info = [];
-    if (!empty($status['errors'])) {
+    if (stripos(ini_get('disable_functions'), 'proc_open') !== FALSE) {
+      // proc_open() is disabled.
       $severity = REQUIREMENT_ERROR;
-      foreach ($status['errors'] as $error) {
-        $reported_info[] = $error;
-      }
-      $reported_info[] = $this->t('Go to the <a href=":url">Image toolkit</a> page to configure the toolkit.', [':url' => $this->urlGenerator->generateFromRoute('system.image_toolkit_settings')]);
+      $reported_info[] = $this->t("ImageMagick requires the <a href=':proc_open_url'>proc_open()</a> PHP function to be enabled. Edit the <a href=':disable_functions_url'>disable_functions</a> entry in your php.ini file, or consult your hosting provider.", [
+        ':proc_open_url' => 'http://php.net/manual/en/function.proc-open.php',
+        ':disable_functions_url' => 'http://php.net/manual/en/ini.core.php#ini.disable-functions',
+      ]);
     }
     else {
-      // No errors, report the Imagemagick version in use.
-      $severity = REQUIREMENT_INFO;
-      $version_info = explode("\n", preg_replace('/\r/', '', Html::escape($status['output'])));
-      $more_info_available = FALSE;
-      foreach ($version_info as $key => $item) {
-        if (stripos($item, 'feature') !== FALSE || $key > 4) {
-          $more_info_available = TRUE;
-          break;
-
+      $status = $this->checkPath($this->configFactory->get('imagemagick.settings')->get('path_to_binaries'));
+      if (!empty($status['errors'])) {
+        // Can not execute 'convert'.
+        $severity = REQUIREMENT_ERROR;
+        foreach ($status['errors'] as $error) {
+          $reported_info[] = $error;
         }
-        $reported_info[] = $item;
+        $reported_info[] = $this->t('Go to the <a href=":url">Image toolkit</a> page to configure the toolkit.', [':url' => $this->urlGenerator->generateFromRoute('system.image_toolkit_settings')]);
       }
-      if ($more_info_available) {
-        $reported_info[] = $this->t('To display more information, go to the <a href=":url">Image toolkit</a> page, and expand the \'ImageMagick version information\' section.', [':url' => $this->urlGenerator->generateFromRoute('system.image_toolkit_settings')]);
+      else {
+        // No errors, report the Imagemagick version in use.
+        $severity = REQUIREMENT_INFO;
+        $version_info = explode("\n", preg_replace('/\r/', '', Html::escape($status['output'])));
+        $more_info_available = FALSE;
+        foreach ($version_info as $key => $item) {
+          if (stripos($item, 'feature') !== FALSE || $key > 4) {
+            $more_info_available = TRUE;
+            break;
+
+          }
+          $reported_info[] = $item;
+        }
+        if ($more_info_available) {
+          $reported_info[] = $this->t('To display more information, go to the <a href=":url">Image toolkit</a> page, and expand the \'ImageMagick version information\' section.', [':url' => $this->urlGenerator->generateFromRoute('system.image_toolkit_settings')]);
+        }
       }
     }
-    $requirements['imagemagick_version'] = [
-      'title' => $this->t('ImageMagick'),
-      'description' => [
-        '#markup' => implode('<br />', $reported_info),
+    return [
+      'imagemagick' => [
+        'title' => $this->t('ImageMagick'),
+        'description' => [
+          '#markup' => implode('<br />', $reported_info),
+        ],
+        'severity' => $severity,
       ],
-      'severity' => $severity,
     ];
-    return $requirements;
   }
 
   /**
