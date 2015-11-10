@@ -13,7 +13,7 @@ function imagemagick_requirements($phase) {
     $reported_info = [];
     // proc_open() is disabled.
     $severity = REQUIREMENT_ERROR;
-    $reported_info[] = t("ImageMagick requires the <a href=':proc_open_url'>proc_open()</a> PHP function to be enabled. Edit the <a href=':disable_functions_url'>disable_functions</a> entry in your php.ini file, or consult your hosting provider.", [
+    $reported_info[] = t("The <a href=':proc_open_url'>proc_open()</a> PHP function is disabled. It must be enabled for the toolkit to be installed. Edit the <a href=':disable_functions_url'>disable_functions</a> entry in your php.ini file, or consult your hosting provider.", [
       ':proc_open_url' => 'http://php.net/manual/en/function.proc-open.php',
       ':disable_functions_url' => 'http://php.net/manual/en/ini.core.php#ini.disable-functions',
     ]);

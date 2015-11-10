@@ -11,7 +11,8 @@ To submit bug reports and feature suggestions, or to track changes:
 
 -- REQUIREMENTS --
 
-* ImageMagick (http://www.imagemagick.org) needs to be installed on your server
+* Either ImageMagick (http://www.imagemagick.org) or GraphicsMagick
+  (http://www.graphicsmagick.org) need to be installed on your server
   and the convert binary needs to be accessible and executable from PHP.
 
 * The PHP configuration must allow invocation of proc_open() (which is
@@ -31,8 +32,11 @@ these requirements.
 * Go to Administration » Configuration » Media » Image toolkit and change the
   image toolkit to ImageMagick.
 
+* Select the graphics package (ImageMagick or GraphicsMagick) you want to use
+  with the toolkit.
+
 * If the convert binary cannot be found in the default shell path, you need to
-  enter the path to ImageMagick's executables.
+  enter the path to the executables, including the trailing slash/backslash.
 
 
 -- CONTACT --

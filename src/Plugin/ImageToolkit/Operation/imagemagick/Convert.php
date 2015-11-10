@@ -36,7 +36,7 @@ class Convert extends ImagemagickImageToolkitOperationBase {
    */
   protected function validateArguments(array $arguments) {
     if (!in_array($arguments['extension'], $this->getToolkit()->getSupportedExtensions())) {
-      throw new \InvalidArgumentException(String::format("Invalid extension (@value) specified for the image 'convert' operation", array('@value' => $arguments['extension'])));
+      throw new \InvalidArgumentException("Invalid extension ({$arguments['extension']}) specified for the image 'convert' operation");
     }
     return $arguments;
   }

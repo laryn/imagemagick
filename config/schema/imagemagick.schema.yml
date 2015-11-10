@@ -8,24 +8,24 @@ imagemagick.settings:
     quality:
       type: integer
       label: 'Image quality'
+    binaries:
+      type: string
+      label: 'Graphics package - ImageMagick/GraphicsMagick'
     path_to_binaries:
       type: string
-      label: 'Path to the ImageMagick binaries'
+      label: 'Path to the binaries'
     prepend:
       type: string
       label: 'Prepend arguments'
     debug:
       type: boolean
       label: 'Display debugging information'
-    gm:
-      type: boolean
-      label: 'Enable GraphicsMagick support'
     use_identify:
       type: boolean
       label: 'Use identify command'
     advanced:
       type: mapping
-      label: 'Imagemagick advanced settings'
+      label: 'Advanced settings'
       mapping:
         density:
           type: integer

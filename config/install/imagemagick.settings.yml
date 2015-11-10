@@ -1,8 +1,8 @@
 quality: 75
+binaries: 'imagemagick'
 path_to_binaries: ''
 prepend: ''
 debug: FALSE
-gm: FALSE
 use_identify: TRUE
 advanced:
   density: 0

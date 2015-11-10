@@ -7,6 +7,7 @@
 
 namespace Drupal\imagemagick\Plugin\ImageToolkit;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -176,7 +177,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
 
     $form['imagemagick'] = array(
       '#type' => 'item',
-      '#description' => $this->t('ImageMagick is a stand-alone program for image manipulation. It must be installed on the server and you need to know where it is located. Consult your server administrator or hosting provider for details.'),
+      '#description' => $this->t('ImageMagick and GraphicsMagick are stand-alone packages for image manipulation. At least one of them must be installed on the server, and you need to know where it is located. Consult your server administrator or hosting provider for details.'),
     );
     $form['quality'] = array(
       '#type' => 'number',
@@ -189,57 +190,123 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#field_suffix' => '%',
       '#description' => $this->t('Define the image quality of processed images. Ranges from 0 to 100. Higher values mean better image quality but bigger files.'),
     );
-    $form['gm'] = array(
-      '#type' => 'checkbox',
-      '#title' => $this->t('Enable <a href="@gm-url">GraphicsMagick</a> support', array(
-        '@gm-url' => 'http://www.graphicsmagick.org',
-      )),
-      '#default_value' => $config->get('gm'),
+
+    // Graphics suite to use.
+    $form['suite'] = array(
+      '#type' => 'details',
+      '#open' => TRUE,
+      '#collapsible' => FALSE,
+      '#title' => $this->t('Graphics package'),
     );
-    $form['path_to_binaries'] = array(
+    $options = [
+      'imagemagick' => $this->t("ImageMagick (see <a href=':im-url'>website</a>)", [':im-url' => 'http://www.imagemagick.org']),
+      'graphicsmagick' => $this->t("GraphicsMagick (see <a href=':gm-url'>website</a>)", [':gm-url' => 'http://www.graphicsmagick.org']),
+    ];
+    $form['suite']['binaries'] = [
+      '#type' => 'radios',
+      '#title' => $this->t('Suite'),
+      '#default_value' => $config->get('binaries'),
+      '#options' => $options,
+      '#required' => TRUE,
+      '#description' => $this->t("Select the graphics package to use."),
+    ];
+    // Path to binaries.
+    $form['suite']['path_to_binaries'] = array(
       '#type' => 'textfield',
-      '#title' => $this->t('Path to the ImageMagick binaries'),
+      '#title' => $this->t('Path to the package executables'),
       '#default_value' => $config->get('path_to_binaries'),
       '#required' => FALSE,
-      '#description' => $this->t('If needed, the path to the ImageMagick <kbd>convert</kbd> and <kbd>identify</kbd> binaries. For example: <kbd>/usr/bin/</kbd> or <kbd>C:\Program Files\ImageMagick-6.3.4-Q16\</kbd>.'),
+      '#description' => $this->t('If needed, the path to the package executables (<kbd>convert</kbd>, <kbd>identify</kbd>, <kbd>gm</kbd>, etc.), <b>including</b> the trailing slash/backslash. For example: <kbd>/usr/bin/</kbd> or <kbd>C:\Program Files\ImageMagick-6.3.4-Q16\</kbd>.'),
     );
-    $form['prepend'] = array(
+    // Version information.
+    $status = $this->checkPath($config->get('path_to_binaries'));
+    if (empty($status['errors'])) {
+      $version_info = explode("\n", preg_replace('/\r/', '', Html::escape($status['output'])));
+    }
+    else {
+      $version_info = $status['errors'];
+    }
+    $form['suite']['version'] = [
+      '#type' => 'details',
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      '#title' => $this->t('Version information'),
+      '#description' => '<pre>' . implode('<br />', $version_info) . '</pre>',
+    ];
+
+    // Image formats.
+    $form['formats'] = [
+      '#type' => 'details',
+      '#open' => TRUE,
+      '#collapsible' => FALSE,
+      '#title' => $this->t('Image formats'),
+    ];
+    // Use 'identify' command.
+    $form['formats']['use_identify'] = array(
+      '#type' => 'checkbox',
+      '#title' => $this->t('Use "identify"'),
+      '#default_value' => $config->get('use_identify'),
+      '#description' => $this->t('Use the <kbd>identify</kbd> command to parse image files to determine image format and dimensions. If not selected, the PHP <kbd>getimagesize</kbd> function will be used, BUT this will limit the image formats supported by the toolkit.'),
+    );
+    // Image formats supported by the package.
+    if (empty($status['errors'])) {
+      $package = $this->configFactory->get('imagemagick.settings')->get('binaries');
+      $suite = $package === 'imagemagick' ? $this->t('ImageMagick') : $this->t('GraphicsMagick');
+      $command = $package === 'imagemagick' ? 'convert' : 'gm';
+      $command = $this->configFactory->get('imagemagick.settings')->get('binaries') === 'imagemagick' ? 'convert' : 'gm';
+      $this->moduleHandler->alter('imagemagick_arguments', $this, $command);
+      $this->addArgument('-list format');
+      $this->imagemagickExec($command, $output);
+      $this->resetArguments();
+      $formats_info = implode('<br />', explode("\n", preg_replace('/\r/', '', Html::escape($output))));
+      $form['formats']['list'] = [
+        '#type' => 'details',
+        '#collapsible' => TRUE,
+        '#collapsed' => TRUE,
+        '#title' => $this->t('@suite supported image formats', ['@suite' => $suite]),
+        '#description' => $this->t("Supported image formats returned by executing <kbd>'convert -list format'</kbd>.") . ' ' . $this->t("<b>Note:</b> these are the formats supported by the installed @suite executable, <b>not</b> by the toolkit.", ['@suite' => $suite]) . "<br /><br /><pre>" . $formats_info . "</ pre>",
+      ];
+    }
+
+    // Execution options.
+    $form['exec'] = [
+      '#type' => 'details',
+      '#open' => TRUE,
+      '#collapsible' => FALSE,
+      '#title' => $this->t('Execution options'),
+    ];
+    // Prepend arguments.
+    $form['exec']['prepend'] = array(
       '#type' => 'textfield',
       '#title' => $this->t('Prepend arguments'),
       '#default_value' => $config->get('prepend'),
       '#required' => FALSE,
-      '#description' => $this->t('Additional arguments to add in front of the others when executing the <kbd>convert</kbd> command. Useful if you need to set <kbd>-limit</kbd> arguments.'),
+      '#description' => $this->t('Additional arguments to add in front of the others when executing commands. Useful if you need to set e.g. <kbd>-limit</kbd> or <kbd>-debug</kbd> arguments.'),
     );
-
-    $form['use_identify'] = array(
-      '#type' => 'checkbox',
-      '#title' => $this->t('Use "identify"'),
-      '#default_value' => $config->get('use_identify'),
-      '#description' => $this->t('Use ImageMagick <kbd>identify</kbd> binary to parse image files to determine image format and dimensions. If not selected, the PHP <kbd>getimagesize</kbd> function will be used.'),
-    );
-
-    $form['debug'] = array(
+    // Debugging.
+    $form['exec']['debug'] = array(
       '#type' => 'checkbox',
       '#title' => $this->t('Display debugging information'),
       '#default_value' => $config->get('debug'),
-      '#description' => $this->t('Shows ImageMagick commands and their output to users with the %permission permission.', array(
+      '#description' => $this->t('Shows commands and their output to users with the %permission permission.', array(
         '%permission' => $this->t('Administer site configuration'),
       )),
     );
 
+    // Advanced image settings.
     $form['advanced'] = array(
       '#type' => 'details',
       '#collapsible' => TRUE,
       '#collapsed' => TRUE,
-      '#title' => $this->t('Advanced settings'),
+      '#title' => $this->t('Advanced image settings'),
     );
     $form['advanced']['density'] = array(
       '#type' => 'checkbox',
       '#title' => $this->t('Change image resolution to 72 ppi'),
       '#default_value' => $config->get('advanced.density'),
       '#return_value' => 72,
-      '#description' => $this->t('Resamples the image <a href="@help-url">density</a> to a resolution of 72 pixels per inch, the default for web images. Does not affect the pixel size or quality.', array(
-        '@help-url' => 'http://www.imagemagick.org/script/command-line-options.php#density',
+      '#description' => $this->t("Resamples the image <a href=':help-url'>density</a> to a resolution of 72 pixels per inch, the default for web images. Does not affect the pixel size or quality.", array(
+        ':help-url' => 'http://www.imagemagick.org/script/command-line-options.php#density',
       )),
     );
     $form['advanced']['colorspace'] = array(
@@ -253,8 +320,8 @@ class ImagemagickToolkit extends ImageToolkitBase {
       ),
       '#empty_value' => 0,
       '#empty_option' => $this->t('- Original -'),
-      '#description' => $this->t('Converts processed images to the specified <a href="@help-url">colorspace</a>. The color profile option overrides this setting.', array(
-        '@help-url' => 'http://www.imagemagick.org/script/command-line-options.php#colorspace',
+      '#description' => $this->t("Converts processed images to the specified <a href=':help-url'>colorspace</a>. The color profile option overrides this setting.", array(
+        ':help-url' => 'http://www.imagemagick.org/script/command-line-options.php#colorspace',
       )),
       '#states' => array(
         'enabled' => array(
@@ -266,51 +333,39 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#type' => 'textfield',
       '#title' => $this->t('Color profile path'),
       '#default_value' => $config->get('advanced.profile'),
-      '#description' => $this->t('The path to a <a href="@help-url">color profile</a> file that all processed images will be converted to. Leave blank to disable. Use a <a href="@color-url">sRGB profile</a> to correct the display of professional images and photography.', array(
-        '@help-url' => 'http://www.imagemagick.org/script/command-line-options.php#profile',
-        '@color-url' => 'http://www.color.org/profiles.html',
+      '#description' => $this->t("The path to a <a href=':help-url'>color profile</a> file that all processed images will be converted to. Leave blank to disable. Use a <a href=':color-url'>sRGB profile</a> to correct the display of professional images and photography.", array(
+        ':help-url' => 'http://www.imagemagick.org/script/command-line-options.php#profile',
+        ':color-url' => 'http://www.color.org/profiles.html',
       )),
     );
-
-    // Version information.
-    $status = $this->checkPath($config->get('path_to_binaries'));
-    if (empty($status['errors'])) {
-      $version_info = explode("\n", preg_replace('/\r/', '', Html::escape($status['output'])));
-    }
-    else {
-      $version_info = $status['errors'];
-    }
-    $form['version'] = [
-      '#type' => 'details',
-      '#collapsible' => TRUE,
-      '#collapsed' => TRUE,
-      '#title' => $this->t('ImageMagick version information'),
-      '#description' => '<kbd>' . implode('<br />', $version_info) . '</kbd>',
-    ];
 
     return $form;
   }
 
   /**
-   * Verifies file path of ImageMagick convert binary by checking its version.
+   * Verifies file path of the executable binary by checking its version.
    *
    * @param string $path
    *   The user-submitted file path to the convert binary.
+   * @param string $package
+   *   (optional) The graphics package to use.
    *
    * @return array
    *   An associative array containing:
    *   - output: The shell output of 'convert -version', if any.
-   *   - errors: A list of error messages indicating whether ImageMagick could
+   *   - errors: A list of error messages indicating if the executable could
    *     not be found or executed.
    */
-  public function checkPath($path) {
+  public function checkPath($path, $package = NULL) {
     $status = array(
       'output' => '',
       'errors' => array(),
     );
 
     // Execute gm or convert based on settings.
-    $command = $this->configFactory->get('imagemagick.settings')->get('gm') ? 'gm' : 'convert';
+    $package = $package ?: $this->configFactory->get('imagemagick.settings')->get('binaries');
+    $suite = $package === 'imagemagick' ? $this->t('ImageMagick') : $this->t('GraphicsMagick');
+    $command = $package === 'imagemagick' ? 'convert' : 'gm';
     $path .= $command;
 
     // If a path is given, we check whether the binary exists and can be
@@ -318,17 +373,18 @@ class ImagemagickToolkit extends ImageToolkitBase {
     if ($path != 'convert' && $path != 'gm') {
       // Check whether the given file exists.
       if (!is_file($path)) {
-        $status['errors'][] = $this->t('The ImageMagick binary %file does not exist.', array('%file' => $path));
+        $status['errors'][] = $this->t('The @suite executable %file does not exist.', array('@suite' => $suite, '%file' => $path));
       }
       // If it exists, check whether we can execute it.
       elseif (!is_executable($path)) {
-        $status['errors'][] = $this->t('The ImageMagick binary %file is not executable.', array('%file' => $path));
+        $status['errors'][] = $this->t('The @suite file %file is not executable.', array('@suite' => $suite, '%file' => $path));
       }
     }
 
     // In case of errors, check for open_basedir restrictions.
     if ($status['errors'] && ($open_basedir = ini_get('open_basedir'))) {
-      $status['errors'][] = $this->t('The PHP <a href=":php-url">open_basedir</a> security restriction is set to %open-basedir, which may prevent to locate ImageMagick.', array(
+      $status['errors'][] = $this->t('The PHP <a href=":php-url">open_basedir</a> security restriction is set to %open-basedir, which may prevent to locate the @suite executable.', array(
+        '@suite' => $suite,
         '%open-basedir' => $open_basedir,
         ':php-url' => 'http://php.net/manual/en/ini.core.php#ini.open-basedir',
       ));
@@ -339,13 +395,13 @@ class ImagemagickToolkit extends ImageToolkitBase {
       $error = NULL;
       $this->addArgument('-version');
       $this->imagemagickExec($command, $status['output'], $error, $path);
+      $this->resetArguments();
       if ($error !== '') {
         // $error normally needs check_plain(), but file system errors on
         // Windows use a unknown encoding. check_plain() would eliminate the
         // entire string.
         $status['errors'][] = $error;
       }
-      $this->resetArguments();
     }
 
     return $status;
@@ -355,9 +411,14 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * {@inheritdoc}
    */
   public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {
-    $status = $this->checkPath($form_state->getValue(['imagemagick', 'path_to_binaries']));
-    if ($status['errors']) {
-      $form_state->setErrorByName('imagemagick][path_to_binaries');
+    // Validate the binaries path only if this toolkit is selected, otherwise
+    // it will prevent the entire image toolkit selection form from being
+    // submitted.
+    if ($form_state->getValue(['image_toolkit']) === 'imagemagick') {
+      $status = $this->checkPath($form_state->getValue(['imagemagick', 'suite', 'path_to_binaries']), $form_state->getValue(['imagemagick', 'suite', 'binaries']));
+      if ($status['errors']) {
+        $form_state->setErrorByName('imagemagick][suite][path_to_binaries', new FormattableMarkup(implode('<br />', $status['errors']), []));
+      }
     }
   }
 
@@ -367,11 +428,11 @@ class ImagemagickToolkit extends ImageToolkitBase {
   public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
     $this->configFactory->getEditable('imagemagick.settings')
       ->set('quality', $form_state->getValue(array('imagemagick', 'quality')))
-      ->set('gm', $form_state->getValue(array('imagemagick', 'gm')))
-      ->set('path_to_binaries', $form_state->getValue(array('imagemagick', 'path_to_binaries')))
-      ->set('prepend', $form_state->getValue(array('imagemagick', 'prepend')))
-      ->set('use_identify', $form_state->getValue(array('imagemagick', 'use_identify')))
-      ->set('debug', $form_state->getValue(array('imagemagick', 'debug')))
+      ->set('binaries', $form_state->getValue(array('imagemagick', 'suite', 'binaries')))
+      ->set('path_to_binaries', $form_state->getValue(array('imagemagick', 'suite', 'path_to_binaries')))
+      ->set('use_identify', $form_state->getValue(array('imagemagick', 'formats', 'use_identify')))
+      ->set('prepend', $form_state->getValue(array('imagemagick', 'exec', 'prepend')))
+      ->set('debug', $form_state->getValue(array('imagemagick', 'exec', 'debug')))
       ->set('advanced.density', $form_state->getValue(array('imagemagick', 'advanced', 'density')))
       ->set('advanced.colorspace', $form_state->getValue(array('imagemagick', 'advanced', 'colorspace')))
       ->set('advanced.profile', $form_state->getValue(array('imagemagick', 'advanced', 'profile')))
@@ -529,7 +590,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
   /**
    * Gets the image destination format.
    *
-   * When set, it is passed to ImageMagick's convert binary in the syntax
+   * When set, it is passed to the convert binary in the syntax
    * "[format]:[destination]", where [format] is a string denoting an
    * ImageMagick's image format.
    *
@@ -543,7 +604,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
   /**
    * Sets the image destination format.
    *
-   * When set, it is passed to ImageMagick's convert binary in the syntax
+   * When set, it is passed to the convert binary in the syntax
    * "[format]:[destination]", where [format] is a string denoting an
    * ImageMagick's image format.
    *
@@ -607,7 +668,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
   }
 
   /**
-   * Gets the command line arguments for the Imagemagick binary.
+   * Gets the command line arguments for the binary.
    *
    * @return string[]
    *   The array of command line arguments.
@@ -839,7 +900,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   TRUE if the file could be identified, FALSE otherwise.
    */
   protected function identify() {
-    // Allow modules to alter the ImageMagick command line parameters.
+    // Allow modules to alter the command line parameters.
     $command = 'identify';
     $this->moduleHandler->alter('imagemagick_arguments', $this, $command);
 
@@ -857,8 +918,8 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   TRUE if the file could be converted, FALSE otherwise.
    */
   protected function convert() {
-    // Allow modules to alter the ImageMagick command line parameters.
-    $command = $this->configFactory->get('imagemagick.settings')->get('gm') ? 'gm' : 'convert';
+    // Allow modules to alter the command line parameters.
+    $command = $this->configFactory->get('imagemagick.settings')->get('binaries') === 'imagemagick' ? 'convert' : 'gm';
     $this->moduleHandler->alter('imagemagick_arguments', $this, $command);
 
     // Execute the 'convert' or 'gm' command.
@@ -866,10 +927,10 @@ class ImagemagickToolkit extends ImageToolkitBase {
   }
 
   /**
-   * Executes the ImageMagick convert executable as shell command.
+   * Executes the convert executable as shell command.
    *
    * @param string $command
-   *   The ImageMagick executable to run.
+   *   The executable to run.
    * @param string $command_args
    *   A string containing arguments to pass to the command, which must have
    *   been passed through $this->escapeShellArg() already.
@@ -887,6 +948,8 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   - Error exit status code integer returned by the executable.
    */
   protected function imagemagickExec($command, &$output = NULL, &$error = NULL, $path = NULL) {
+    $suite = $this->configFactory->get('imagemagick.settings')->get('binaries') === 'imagemagick' ? 'ImageMagick' : 'GraphicsMagick';
+
     // $path is only passed from the validation of the image toolkit form, on
     // which the path to convert is configured.
     // @see ::checkPath()
@@ -904,7 +967,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
       // @see http://us3.php.net/manual/en/function.exec.php#56599
       // Use /D to run the command from PHP's current working directory so the
       // file paths don't have to be absolute.
-      $path = 'start "ImageMagick" /D ' . $this->escapeShellArg($drupal_path) . ' /B ' . $this->escapeShellArg($path);
+      $path = 'start "' . $suite . '" /D ' . $this->escapeShellArg($drupal_path) . ' /B ' . $this->escapeShellArg($path);
     }
 
     if ($source_path = $this->getSourceLocalPath()) {
@@ -968,29 +1031,30 @@ class ImagemagickToolkit extends ImageToolkitBase {
       if ($this->configFactory->get('imagemagick.settings')->get('debug')) {
         $current_user = \Drupal::currentUser();
         if ($current_user->hasPermission('administer site configuration')) {
-          debug($cmdline, $this->t('ImageMagick command'), TRUE);
+          debug($cmdline, $this->t('@suite command', ['@suite' => $suite]), TRUE);
           if ($output !== '') {
-            debug($output, $this->t('ImageMagick output'), TRUE);
+            debug($output, $this->t('@suite output', ['@suite' => $suite]), TRUE);
           }
           if ($error !== '') {
-            debug($error, $this->t('ImageMagick error'), TRUE);
+            debug($error, $this->t('@suite error', ['@suite' => $suite]), TRUE);
           }
         }
       }
 
-      // If ImageMagick returned a non-zero code, log to the watchdog.
+      // If the executable returned a non-zero code, log to the watchdog.
       if ($return_code != 0) {
         // If there is no error message, clarify this.
         if ($error === '') {
           $error = $this->t('No error message.');
         }
         // Format $error with as full message, passed by reference.
-        $error = $this->t('ImageMagick error @code: @error', array(
+        $error = $this->t('@suite error @code: @error', array(
+          '@suite' => $suite,
           '@code' => $return_code,
           '@error' => $error,
         ));
         $this->logger->error($error);
-        // ImageMagick exited with an error code, return it.
+        // Executable exited with an error code, return it.
         return $return_code;
       }
 
@@ -1009,7 +1073,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
     if (stripos(ini_get('disable_functions'), 'proc_open') !== FALSE) {
       // proc_open() is disabled.
       $severity = REQUIREMENT_ERROR;
-      $reported_info[] = $this->t("ImageMagick requires the <a href=':proc_open_url'>proc_open()</a> PHP function to be enabled. Edit the <a href=':disable_functions_url'>disable_functions</a> entry in your php.ini file, or consult your hosting provider.", [
+      $reported_info[] = $this->t("The <a href=':proc_open_url'>proc_open()</a> PHP function is disabled. It must be enabled for the toolkit to work. Edit the <a href=':disable_functions_url'>disable_functions</a> entry in your php.ini file, or consult your hosting provider.", [
         ':proc_open_url' => 'http://php.net/manual/en/function.proc-open.php',
         ':disable_functions_url' => 'http://php.net/manual/en/ini.core.php#ini.disable-functions',
       ]);
@@ -1025,7 +1089,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
         $reported_info[] = $this->t('Go to the <a href=":url">Image toolkit</a> page to configure the toolkit.', [':url' => $this->urlGenerator->generateFromRoute('system.image_toolkit_settings')]);
       }
       else {
-        // No errors, report the Imagemagick version in use.
+        // No errors, report the version information.
         $severity = REQUIREMENT_INFO;
         $version_info = explode("\n", preg_replace('/\r/', '', Html::escape($status['output'])));
         $more_info_available = FALSE;
@@ -1038,7 +1102,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
           $reported_info[] = $item;
         }
         if ($more_info_available) {
-          $reported_info[] = $this->t('To display more information, go to the <a href=":url">Image toolkit</a> page, and expand the \'ImageMagick version information\' section.', [':url' => $this->urlGenerator->generateFromRoute('system.image_toolkit_settings')]);
+          $reported_info[] = $this->t('To display more information, go to the <a href=":url">Image toolkit</a> page, and expand the \'Version information\' section.', [':url' => $this->urlGenerator->generateFromRoute('system.image_toolkit_settings')]);
         }
       }
     }
