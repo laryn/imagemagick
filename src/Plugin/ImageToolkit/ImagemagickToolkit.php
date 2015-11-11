@@ -15,7 +15,7 @@ use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\ImageToolkit\ImageToolkitBase;
 use Drupal\Core\ImageToolkit\ImageToolkitOperationManagerInterface;
-use Drupal\Core\Routing\UrlGeneratorInterface;
+use Drupal\Core\Url;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface;
@@ -44,13 +44,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @var \Drupal\Core\Extension\ModuleHandlerInterface
    */
   protected $moduleHandler;
-
-  /**
-   * The URL generator.
-   *
-   * @var \Drupal\Core\Routing\UrlGeneratorInterface
-   */
-  protected $urlGenerator;
 
   /**
    * The array of command line arguments to be used by 'convert'.
@@ -141,15 +134,12 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   The MIME type guessing service.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler service.
-   * @param \Drupal\Core\Routing\UrlGeneratorInterface $url_generator
-   *   The URL generator.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ImageToolkitOperationManagerInterface $operation_manager, LoggerInterface $logger, ConfigFactoryInterface $config_factory, MimeTypeGuesserInterface $mime_type_guesser, ModuleHandlerInterface $module_handler, UrlGeneratorInterface $url_generator) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ImageToolkitOperationManagerInterface $operation_manager, LoggerInterface $logger, ConfigFactoryInterface $config_factory, MimeTypeGuesserInterface $mime_type_guesser, ModuleHandlerInterface $module_handler) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $operation_manager, $logger, $config_factory);
     // @todo change if extension mapping service gets in, see #2311679
     $this->mimeTypeGuesser = $mime_type_guesser;
     $this->moduleHandler = $module_handler;
-    $this->urlGenerator = $url_generator;
   }
 
   /**
@@ -164,8 +154,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
       $container->get('logger.channel.image'),
       $container->get('config.factory'),
       $container->get('file.mime_type.guesser.extension'),
-      $container->get('module_handler'),
-      $container->get('url_generator')
+      $container->get('module_handler')
     );
   }
 
@@ -1086,7 +1075,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
         foreach ($status['errors'] as $error) {
           $reported_info[] = $error;
         }
-        $reported_info[] = $this->t('Go to the <a href=":url">Image toolkit</a> page to configure the toolkit.', [':url' => $this->urlGenerator->generateFromRoute('system.image_toolkit_settings')]);
+        $reported_info[] = $this->t('Go to the <a href=":url">Image toolkit</a> page to configure the toolkit.', [':url' => Url::fromRoute('system.image_toolkit_settings')->toString()]);
       }
       else {
         // No errors, report the version information.
@@ -1102,7 +1091,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
           $reported_info[] = $item;
         }
         if ($more_info_available) {
-          $reported_info[] = $this->t('To display more information, go to the <a href=":url">Image toolkit</a> page, and expand the \'Version information\' section.', [':url' => $this->urlGenerator->generateFromRoute('system.image_toolkit_settings')]);
+          $reported_info[] = $this->t('To display more information, go to the <a href=":url">Image toolkit</a> page, and expand the \'Version information\' section.', [':url' => Url::fromRoute('system.image_toolkit_settings')->toString()]);
         }
       }
     }
