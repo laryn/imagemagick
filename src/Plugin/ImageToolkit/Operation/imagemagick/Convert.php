@@ -54,7 +54,7 @@ class Convert extends ImagemagickImageToolkitOperationBase {
     }
     $this->getToolkit()
       ->setFrames(NULL)
-      ->setDestinationFormat($arguments['extension']);
+      ->setDestinationFormatFromExtension($arguments['extension']);
     return TRUE;
   }
 

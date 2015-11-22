@@ -65,18 +65,8 @@ class ToolkitImagemagickTest extends WebTestBase {
     ));
     $this->drupalLogin($admin_user);
 
-    // Change the toolkit.
-    \Drupal::configFactory()->getEditable('system.image')
-      ->set('toolkit', 'imagemagick')
-      ->save();
-    \Drupal::configFactory()->getEditable('imagemagick.settings')
-      ->set('debug', TRUE)
-      ->set('quality', 100)
-      ->save();
-
-    // Set the toolkit on the image factory.
+    // Set the image factory.
     $this->imageFactory = $this->container->get('image.factory');
-    $this->imageFactory->setToolkitId('imagemagick');
 
     // Prepare a directory for test file results.
     $this->testDirectory = 'public://imagetest';
@@ -125,6 +115,18 @@ class ToolkitImagemagickTest extends WebTestBase {
    * the expected height and widths for the final images.
    */
   public function testManipulations() {
+    // Change the toolkit.
+    \Drupal::configFactory()->getEditable('system.image')
+      ->set('toolkit', 'imagemagick')
+      ->save();
+    \Drupal::configFactory()->getEditable('imagemagick.settings')
+      ->set('debug', TRUE)
+      ->set('quality', 100)
+      ->save();
+
+    // Set the toolkit on the image factory.
+    $this->imageFactory->setToolkitId('imagemagick');
+
     // Test that the image factory is set to use the Imagemagick toolkit.
     $this->assertEqual($this->imageFactory->getToolkitId(), 'imagemagick', 'The image factory is set to use the \'imagemagick\' image toolkit.');
 
@@ -532,6 +534,57 @@ class ToolkitImagemagickTest extends WebTestBase {
       $this->assertIdentical($image_file['rotated_height'], $image->getHeight());
       $this->assertNull($image->getToolkit()->getFrames());
     }
+  }
+
+  /**
+   * Test ImageMagick subform and settings.
+   */
+  public function testFormAndSettings() {
+    // Change the toolkit.
+    \Drupal::configFactory()->getEditable('system.image')
+      ->set('toolkit', 'imagemagick')
+      ->save();
+
+    // Test form is accepting wrong binaries path while setting toolkit to GD.
+    $this->drupalGet('admin/config/media/image-toolkit');
+    $this->assertFieldByName('image_toolkit', 'imagemagick');
+    $edit = [
+      'image_toolkit' => 'gd',
+      'imagemagick[suite][path_to_binaries]' => '/foo/bar',
+    ];
+    $this->drupalPostForm(NULL, $edit, 'Save configuration');
+    $this->assertFieldByName('image_toolkit', 'gd');
+
+    // Change the toolkit.
+    \Drupal::configFactory()->getEditable('system.image')
+      ->set('toolkit', 'imagemagick')
+      ->save();
+    $this->imageFactory->setToolkitId('imagemagick');
+    $this->assertEqual('imagemagick', $this->imageFactory->getToolkitId());
+
+    // Test default supported image extensions.
+    $this->assertEqual('gif jpe jpeg jpg png', implode(' ', $this->imageFactory->getSupportedExtensions()));
+
+    $config = \Drupal::configFactory()->getEditable('imagemagick.settings');
+
+    // Enable TIFF.
+    $image_formats = $config->get('image_formats');
+    $image_formats['TIFF']['enabled'] = true;
+    $config->set('image_formats', $image_formats)->save();
+    $this->assertEqual('gif jpe jpeg jpg png tif tiff', implode(' ', $this->imageFactory->getSupportedExtensions()));
+
+    // Disable PNG.
+    $image_formats['PNG']['enabled'] = false;
+    $config->set('image_formats', $image_formats)->save();
+    $this->assertEqual('gif jpe jpeg jpg tif tiff', implode(' ', $this->imageFactory->getSupportedExtensions()));
+
+    // Disable some extensions.
+    $image_formats['TIFF']['exclude_extensions'] = 'tif, gif';
+    $config->set('image_formats', $image_formats)->save();
+    $this->assertEqual('gif jpe jpeg jpg tiff', implode(' ', $this->imageFactory->getSupportedExtensions()));
+    $image_formats['JPEG']['exclude_extensions'] = 'jpe, jpg';
+    $config->set('image_formats', $image_formats)->save();
+    $this->assertEqual('gif jpeg tiff', implode(' ', $this->imageFactory->getSupportedExtensions()));
   }
 
 }

@@ -8,6 +8,8 @@
 namespace Drupal\imagemagick\Plugin\ImageToolkit;
 
 use Drupal\Component\Render\FormattableMarkup;
+use Drupal\Component\Serialization\Exception\InvalidDataTypeException;
+use Drupal\Component\Serialization\Yaml;
 use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -16,9 +18,9 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\ImageToolkit\ImageToolkitBase;
 use Drupal\Core\ImageToolkit\ImageToolkitOperationManagerInterface;
 use Drupal\Core\Url;
+use Drupal\imagemagick\ImagemagickFormatMapperInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface;
 
 /**
  * Provides ImageMagick integration toolkit for image manipulation.
@@ -31,19 +33,18 @@ use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface;
 class ImagemagickToolkit extends ImageToolkitBase {
 
   /**
-   * The MIME type guessing service.
-   * @todo change if extension mapping service gets in, see #2311679
-   *
-   * @var \Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface
-   */
-  protected $mimeTypeGuesser;
-
-  /**
    * The module handler service.
    *
    * @var \Drupal\Core\Extension\ModuleHandlerInterface
    */
   protected $moduleHandler;
+
+  /**
+   * The format mapper service.
+   *
+   * @var \Drupal\imagemagick\ImagemagickFormatMapperInterface
+   */
+  protected $formatMapper;
 
   /**
    * The array of command line arguments to be used by 'convert'.
@@ -130,16 +131,15 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   A logger instance.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
-   * @param \Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface $mime_type_guesser
-   *   The MIME type guessing service.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler service.
+   * @param \Drupal\imagemagick\ImagemagickFormatMapperInterface $format_mapper
+   *   The format mapper service.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ImageToolkitOperationManagerInterface $operation_manager, LoggerInterface $logger, ConfigFactoryInterface $config_factory, MimeTypeGuesserInterface $mime_type_guesser, ModuleHandlerInterface $module_handler) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ImageToolkitOperationManagerInterface $operation_manager, LoggerInterface $logger, ConfigFactoryInterface $config_factory, ModuleHandlerInterface $module_handler, ImagemagickFormatMapperInterface $format_mapper) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $operation_manager, $logger, $config_factory);
-    // @todo change if extension mapping service gets in, see #2311679
-    $this->mimeTypeGuesser = $mime_type_guesser;
     $this->moduleHandler = $module_handler;
+    $this->formatMapper = $format_mapper;
   }
 
   /**
@@ -153,8 +153,8 @@ class ImagemagickToolkit extends ImageToolkitBase {
       $container->get('image.toolkit.operation.manager'),
       $container->get('logger.channel.image'),
       $container->get('config.factory'),
-      $container->get('file.mime_type.guesser.extension'),
-      $container->get('module_handler')
+      $container->get('module_handler'),
+      $container->get('imagemagick.format_mapper')
     );
   }
 
@@ -163,10 +163,14 @@ class ImagemagickToolkit extends ImageToolkitBase {
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
     $config = $this->configFactory->getEditable('imagemagick.settings');
+    $package = $this->configFactory->get('imagemagick.settings')->get('binaries');
+    $suite = $package === 'imagemagick' ? $this->t('ImageMagick') : $this->t('GraphicsMagick');
 
     $form['imagemagick'] = array(
-      '#type' => 'item',
-      '#description' => $this->t('ImageMagick and GraphicsMagick are stand-alone packages for image manipulation. At least one of them must be installed on the server, and you need to know where it is located. Consult your server administrator or hosting provider for details.'),
+      '#markup' => $this->t("<a href=':im-url'>ImageMagick</a> and <a href=':gm-url'>GraphicsMagick</a> are stand-alone packages for image manipulation. At least one of them must be installed on the server, and you need to know where it is located. Consult your server administrator or hosting provider for details.", [
+        ':im-url' => 'http://www.imagemagick.org',
+        ':gm-url' => 'http://www.graphicsmagick.org',
+      ]),
     );
     $form['quality'] = array(
       '#type' => 'number',
@@ -188,8 +192,8 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#title' => $this->t('Graphics package'),
     );
     $options = [
-      'imagemagick' => $this->t("ImageMagick (see <a href=':im-url'>website</a>)", [':im-url' => 'http://www.imagemagick.org']),
-      'graphicsmagick' => $this->t("GraphicsMagick (see <a href=':gm-url'>website</a>)", [':gm-url' => 'http://www.graphicsmagick.org']),
+      'imagemagick' => $this->t("ImageMagick"),
+      'graphicsmagick' => $this->t("GraphicsMagick"),
     ];
     $form['suite']['binaries'] = [
       '#type' => 'radios',
@@ -237,13 +241,32 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#default_value' => $config->get('use_identify'),
       '#description' => $this->t('Use the <kbd>identify</kbd> command to parse image files to determine image format and dimensions. If not selected, the PHP <kbd>getimagesize</kbd> function will be used, BUT this will limit the image formats supported by the toolkit.'),
     );
+    // Image formats enabled in the toolkit.
+    $form['formats']['enabled'] = [
+      '#type' => 'item',
+      '#title' => $this->t('Enabled images'),
+      '#description' => $this->t("@suite formats: %formats<br />Image file extensions: %extensions", [
+        '%formats' => implode(', ', $this->formatMapper->getEnabledFormats()),
+        '%extensions' => Unicode::strtolower(implode(', ', static::getSupportedExtensions())),
+        '@suite' => $suite,
+      ]),
+    ];
+    // Image formats map.
+    $form['formats']['mapping'] = [
+      '#type' => 'details',
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      '#title' => $this->t('Enable/disable image formats'),
+      '#description' => $this->t("Edit the map below to enable/disable image formats. Enabled image file extensions will be determined by the enabled formats, through their MIME types. More information in the module's README.txt"),
+    ];
+    $form['formats']['mapping']['image_formats'] = [
+      '#type' => 'textarea',
+      '#rows' => 15,
+      '#default_value' => Yaml::encode($config->get('image_formats')),
+    ];
     // Image formats supported by the package.
     if (empty($status['errors'])) {
-      $package = $this->configFactory->get('imagemagick.settings')->get('binaries');
-      $suite = $package === 'imagemagick' ? $this->t('ImageMagick') : $this->t('GraphicsMagick');
       $command = $package === 'imagemagick' ? 'convert' : 'gm';
-      $command = $this->configFactory->get('imagemagick.settings')->get('binaries') === 'imagemagick' ? 'convert' : 'gm';
-      $this->moduleHandler->alter('imagemagick_arguments', $this, $command);
       $this->addArgument('-list format');
       $this->imagemagickExec($command, $output);
       $this->resetArguments();
@@ -252,8 +275,11 @@ class ImagemagickToolkit extends ImageToolkitBase {
         '#type' => 'details',
         '#collapsible' => TRUE,
         '#collapsed' => TRUE,
-        '#title' => $this->t('@suite supported image formats', ['@suite' => $suite]),
-        '#description' => $this->t("Supported image formats returned by executing <kbd>'convert -list format'</kbd>.") . ' ' . $this->t("<b>Note:</b> these are the formats supported by the installed @suite executable, <b>not</b> by the toolkit.", ['@suite' => $suite]) . "<br /><br /><pre>" . $formats_info . "</ pre>",
+        '#title' => $this->t('Format list'),
+        '#description' => $this->t("Supported image formats returned by executing <kbd>'convert -list format'</kbd>. <b>Note:</b> these are the formats supported by the installed @suite executable, <b>not</b> by the toolkit.<br /><br />", ['@suite' => $suite]),
+      ];
+      $form['formats']['list']['list'] = [
+        '#markup' => "<pre>" . $formats_info . "</ pre>",
       ];
     }
 
@@ -400,6 +426,19 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * {@inheritdoc}
    */
   public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {
+    try {
+      // Check that the format map contains valid YAML.
+      $image_formats = Yaml::decode($form_state->getValue(['imagemagick', 'formats', 'mapping', 'image_formats']));
+      // Validate the enabled image formats.
+      $errors = $this->formatMapper->validateMap($image_formats);
+      if ($errors) {
+        $form_state->setErrorByName('imagemagick][formats][mapping][image_formats', new FormattableMarkup("<pre>@errors</pre>", ['@errors' => Yaml::encode($errors)]));
+      }
+    }
+    catch (InvalidDataTypeException $e) {
+      // Invalid YAML detected, show details.
+      $form_state->setErrorByName('imagemagick][formats][mapping][image_formats', $this->t("YAML syntax error: @error", ['@error' => $e->getMessage()]));
+    }
     // Validate the binaries path only if this toolkit is selected, otherwise
     // it will prevent the entire image toolkit selection form from being
     // submitted.
@@ -420,6 +459,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
       ->set('binaries', $form_state->getValue(array('imagemagick', 'suite', 'binaries')))
       ->set('path_to_binaries', $form_state->getValue(array('imagemagick', 'suite', 'path_to_binaries')))
       ->set('use_identify', $form_state->getValue(array('imagemagick', 'formats', 'use_identify')))
+      ->set('image_formats', Yaml::decode($form_state->getValue(['imagemagick', 'formats', 'mapping', 'image_formats'])))
       ->set('prepend', $form_state->getValue(array('imagemagick', 'exec', 'prepend')))
       ->set('debug', $form_state->getValue(array('imagemagick', 'exec', 'debug')))
       ->set('advanced.density', $form_state->getValue(array('imagemagick', 'advanced', 'density')))
@@ -477,7 +517,21 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @return $this
    */
   public function setSourceFormat($format) {
-    $this->sourceFormat = $format;
+    $this->sourceFormat = $this->formatMapper->isFormatEnabled($format) ? $format : '';
+    return $this;
+  }
+
+  /**
+   * Sets the source image format from an image file extension.
+   *
+   * @param string $extension
+   *   The image file extension.
+   *
+   * @return $this
+   */
+  public function setSourceFormatFromExtension($extension) {
+    $format = $this->formatMapper->getFormatFromExtension($extension);
+    $this->sourceFormat = $format ?: '';
     return $this;
   }
 
@@ -597,13 +651,31 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * "[format]:[destination]", where [format] is a string denoting an
    * ImageMagick's image format.
    *
-   * @param string $destination_format
+   * @param string $format
    *   The image destination format.
    *
    * @return $this
    */
-  public function setDestinationFormat($destination_format) {
-    $this->destinationFormat = $destination_format;
+  public function setDestinationFormat($format) {
+    $this->destinationFormat = $this->formatMapper->isFormatEnabled($format) ? $format : '';
+    return $this;
+  }
+
+  /**
+   * Sets the image destination format from an image file extension.
+   *
+   * When set, it is passed to the convert binary in the syntax
+   * "[format]:[destination]", where [format] is a string denoting an
+   * ImageMagick's image format.
+   *
+   * @param string $extension
+   *   The destination image file extension.
+   *
+   * @return $this
+   */
+  public function setDestinationFormatFromExtension($extension) {
+    $format = $this->formatMapper->getFormatFromExtension($extension);
+    $this->destinationFormat = $format ?: '';
     return $this;
   }
 
@@ -651,9 +723,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * {@inheritdoc}
    */
   public function getMimeType() {
-    // @todo change if extension mapping service gets in, see #2311679
-    $format = $this->getSourceFormat();
-    return empty($format) ? NULL : $this->mimeTypeGuesser->guess('dummy.' . $format);
+    return $this->formatMapper->getMimeTypeFromFormat($this->getSourceFormat());
   }
 
   /**
@@ -820,8 +890,8 @@ class ImagemagickToolkit extends ImageToolkitBase {
         list($key, $value) = explode(':', $item);
         $data[$key] = $value;
       }
-      $format = isset($data['format']) ? Unicode::strtolower($data['format']) : NULL;
-      if ($format && in_array($format, static::getSupportedExtensions())) {
+      $format = isset($data['format']) ? $data['format'] : NULL;
+      if ($this->formatMapper->isFormatEnabled($format)) {
         $this
           ->setSourceFormat($format)
           ->setWidth((int) $data['width'])
@@ -840,14 +910,16 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   TRUE if the file could be found and is an image, FALSE otherwise.
    */
   protected function parseFileViaGetImageSize() {
-    $data = @getimagesize($this->getSourceLocalPath());
-    if ($data && in_array(image_type_to_extension($data[2], FALSE), static::getSupportedExtensions())) {
-      $this
-        ->setSourceFormat(image_type_to_extension($data[2], FALSE))
-        ->setWidth($data[0])
-        ->setHeight($data[1]);
-      return TRUE;
-    }
+    if ($data = @getimagesize($this->getSourceLocalPath())) {
+      $format = $this->formatMapper->getFormatFromExtension(image_type_to_extension($data[2], FALSE));
+      if ($format) {
+        $this
+          ->setSourceFormat($format)
+          ->setWidth($data[0])
+          ->setHeight($data[1]);
+        return TRUE;
+      }
+    };
     return FALSE;
   }
 
@@ -1093,6 +1165,10 @@ class ImagemagickToolkit extends ImageToolkitBase {
         if ($more_info_available) {
           $reported_info[] = $this->t('To display more information, go to the <a href=":url">Image toolkit</a> page, and expand the \'Version information\' section.', [':url' => Url::fromRoute('system.image_toolkit_settings')->toString()]);
         }
+        $reported_info[] = '';
+        $reported_info[] = $this->t("Enabled image file extensions: %extensions", [
+          '%extensions' => Unicode::strtolower(implode(', ', static::getSupportedExtensions())),
+        ]);
       }
     }
     return [
@@ -1117,7 +1193,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * {@inheritdoc}
    */
   public static function getSupportedExtensions() {
-    return array('png', 'jpeg', 'jpg', 'gif', 'svg');
+    return \Drupal::service('imagemagick.format_mapper')->getEnabledExtensions();
   }
 
 }

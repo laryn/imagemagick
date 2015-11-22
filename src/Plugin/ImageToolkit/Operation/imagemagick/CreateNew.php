@@ -82,7 +82,7 @@ class CreateNew extends ImagemagickImageToolkitOperationBase {
     $this->getToolkit()
       ->resetArguments()
       ->setSourceLocalPath('')
-      ->setSourceFormat($arguments['extension'])
+      ->setSourceFormatFromExtension($arguments['extension'])
       ->setWidth($arguments['width'])
       ->setHeight($arguments['height'])
       ->setExifOrientation(NULL)

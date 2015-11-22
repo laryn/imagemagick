@@ -23,6 +23,10 @@ imagemagick.settings:
     use_identify:
       type: boolean
       label: 'Use identify command'
+    image_formats:
+      type: sequence
+      sequence:
+        type: imagemagick.image_format
     advanced:
       type: mapping
       label: 'Advanced settings'

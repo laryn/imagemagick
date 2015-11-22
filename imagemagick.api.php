@@ -58,11 +58,10 @@ function hook_imagemagick_post_save_alter(\Drupal\imagemagick\Plugin\ImageToolki
  * ImageMagick automatically converts the target image to the format denoted by
  * the file extension. However, since changing the file extension is not always
  * an option, you can specify an alternative image format via
- * $toolkit->setDestinationFormat('extension'), where 'extension' is a string
- * denoting a file extension.
+ * $toolkit->setDestinationFormat('format'), where 'format' is a string
+ * denoting an Imagemagick supported format.
  * When the destination format is set, it is passed to ImageMagick's convert
- * binary with the syntax "[format]:[destination]", where [format] is a string
- * denoting an ImageMagick's image format.
+ * binary with the syntax "[format]:[destination]".
  *
  * @param \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit $toolkit
  *   The Imagemagick toolkit instance to alter.
