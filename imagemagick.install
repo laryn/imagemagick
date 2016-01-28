@@ -9,6 +9,9 @@
  * Implements hook_requirements().
  */
 function imagemagick_requirements($phase) {
+
+  $requirements = [];
+
   if ($phase === 'install' && stripos(ini_get('disable_functions'), 'proc_open') !== FALSE) {
     $reported_info = [];
     // proc_open() is disabled.
@@ -17,7 +20,8 @@ function imagemagick_requirements($phase) {
       ':proc_open_url' => 'http://php.net/manual/en/function.proc-open.php',
       ':disable_functions_url' => 'http://php.net/manual/en/ini.core.php#ini.disable-functions',
     ]);
-    return [
+
+    $requirements = [
       'imagemagick' => [
         'title' => t('ImageMagick'),
         'description' => [
@@ -27,4 +31,6 @@ function imagemagick_requirements($phase) {
       ],
     ];
   }
+
+  return $requirements;
 }
