@@ -279,7 +279,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
         '#description' => $this->t("Supported image formats returned by executing <kbd>'convert -list format'</kbd>. <b>Note:</b> these are the formats supported by the installed @suite executable, <b>not</b> by the toolkit.<br /><br />", ['@suite' => $suite]),
       ];
       $form['formats']['list']['list'] = [
-        '#markup' => "<pre>" . $formats_info . "</ pre>",
+        '#markup' => "<pre>" . $formats_info . "</pre>",
       ];
     }
 

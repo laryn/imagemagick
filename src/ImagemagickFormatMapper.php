@@ -13,9 +13,7 @@ use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\Schema\SchemaCheckTrait;
 use Drupal\Core\Config\TypedConfigManagerInterface;
-use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
-use Drupal\imagemagick\ImagemagickFormatMapperInterface;
 // @todo change if extension mapping service gets in, see #2311679
 use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface;
 

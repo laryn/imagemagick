@@ -7,7 +7,6 @@
 
 namespace Drupal\imagemagick;
 
-use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\File\MimeType\ExtensionMimeTypeGuesser;
 
 /**
