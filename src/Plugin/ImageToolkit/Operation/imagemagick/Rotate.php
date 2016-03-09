@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\imagemagick\Plugin\ImageToolkit\Operation\imagemagick\Rotate.
- */
-
 namespace Drupal\imagemagick\Plugin\ImageToolkit\Operation\imagemagick;
 
 use Drupal\Component\Utility\Color;

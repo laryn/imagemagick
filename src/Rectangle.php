@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\imagemagick\Rectangle.
- */
-
 namespace Drupal\imagemagick;
 
 /**

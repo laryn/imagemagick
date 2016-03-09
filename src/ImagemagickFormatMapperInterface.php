@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\imagemagick\ImagemagickFormatMapperInterface.
- */
-
 namespace Drupal\imagemagick;
 
 /**

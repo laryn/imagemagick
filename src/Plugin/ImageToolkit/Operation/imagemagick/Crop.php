@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\imagemagick\Plugin\ImageToolkit\Operation\imagemagick\Crop.
- */
-
 namespace Drupal\imagemagick\Plugin\ImageToolkit\Operation\imagemagick;
 
 /**

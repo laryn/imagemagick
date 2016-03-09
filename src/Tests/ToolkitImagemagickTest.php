@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Definition of Drupal\imagemagick\Tests\ToolkitImagemagickTest.
- */
-
 namespace Drupal\imagemagick\Tests;
 
 use Drupal\Core\Image\ImageInterface;

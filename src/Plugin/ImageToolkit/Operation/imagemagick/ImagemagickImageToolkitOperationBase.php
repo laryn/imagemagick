@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains Drupal\imagemagick\Plugin\ImageToolkit\Operation\imagemagick\ImagemagickImageToolkitOperationBase.
- */
-
 namespace Drupal\imagemagick\Plugin\ImageToolkit\Operation\imagemagick;
 
 use Drupal\Core\ImageToolkit\ImageToolkitOperationBase;

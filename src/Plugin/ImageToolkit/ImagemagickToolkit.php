@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit.
- */
-
 namespace Drupal\imagemagick\Plugin\ImageToolkit;
 
 use Drupal\Component\Render\FormattableMarkup;

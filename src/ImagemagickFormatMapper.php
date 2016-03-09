@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\imagemagick\ImagemagickFormatMapper.
- */
-
 namespace Drupal\imagemagick;
 
 use Drupal\Component\Utility\Unicode;
