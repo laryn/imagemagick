@@ -1017,7 +1017,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
     // correctly.
     $drupal_path = DRUPAL_ROOT;
 
-    if (strstr($_SERVER['SERVER_SOFTWARE'], 'Win32') || strstr($_SERVER['SERVER_SOFTWARE'], 'IIS')) {
+    if (substr(PHP_OS, 0, 3) == 'WIN') {
       // Use Window's start command with the /B flag to make the process run in
       // the background and avoid a shell command line window from showing up.
       // @see http://us3.php.net/manual/en/function.exec.php#56599
