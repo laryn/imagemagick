@@ -42,6 +42,13 @@ class ImagemagickToolkit extends ImageToolkitBase {
   protected $formatMapper;
 
   /**
+   * The app root.
+   *
+   * @var string
+   */
+  protected $appRoot;
+
+  /**
    * The array of command line arguments to be used by 'convert'.
    *
    * @var string[]
@@ -130,11 +137,14 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   The module handler service.
    * @param \Drupal\imagemagick\ImagemagickFormatMapperInterface $format_mapper
    *   The format mapper service.
+   * @param string $app_root
+   *   The app root.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ImageToolkitOperationManagerInterface $operation_manager, LoggerInterface $logger, ConfigFactoryInterface $config_factory, ModuleHandlerInterface $module_handler, ImagemagickFormatMapperInterface $format_mapper) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ImageToolkitOperationManagerInterface $operation_manager, LoggerInterface $logger, ConfigFactoryInterface $config_factory, ModuleHandlerInterface $module_handler, ImagemagickFormatMapperInterface $format_mapper, $app_root) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $operation_manager, $logger, $config_factory);
     $this->moduleHandler = $module_handler;
     $this->formatMapper = $format_mapper;
+    $this->appRoot = $app_root;
   }
 
   /**
@@ -149,7 +159,8 @@ class ImagemagickToolkit extends ImageToolkitBase {
       $container->get('logger.channel.image'),
       $container->get('config.factory'),
       $container->get('module_handler'),
-      $container->get('imagemagick.format_mapper')
+      $container->get('imagemagick.format_mapper'),
+      $container->get('app.root')
     );
   }
 
@@ -1013,17 +1024,13 @@ class ImagemagickToolkit extends ImageToolkitBase {
       $path = $this->configFactory->get('imagemagick.settings')->get('path_to_binaries') . $command;
     }
 
-    // Use Drupal's root as working directory to resolve relative paths
-    // correctly.
-    $drupal_path = DRUPAL_ROOT;
-
     if (substr(PHP_OS, 0, 3) == 'WIN') {
       // Use Window's start command with the /B flag to make the process run in
       // the background and avoid a shell command line window from showing up.
       // @see http://us3.php.net/manual/en/function.exec.php#56599
       // Use /D to run the command from PHP's current working directory so the
       // file paths don't have to be absolute.
-      $path = 'start "' . $suite . '" /D ' . $this->escapeShellArg($drupal_path) . ' /B ' . $this->escapeShellArg($path);
+      $path = 'start "' . $suite . '" /D ' . $this->escapeShellArg($this->appRoot) . ' /B ' . $this->escapeShellArg($path);
     }
 
     if ($source_path = $this->getSourceLocalPath()) {
@@ -1068,7 +1075,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
       // stderr
       2 => array('pipe', 'w'),
     );
-    if ($h = proc_open($cmdline, $descriptors, $pipes, $drupal_path)) {
+    if ($h = proc_open($cmdline, $descriptors, $pipes, $this->appRoot)) {
       $output = '';
       while (!feof($pipes[1])) {
         $output .= fgets($pipes[1]);
