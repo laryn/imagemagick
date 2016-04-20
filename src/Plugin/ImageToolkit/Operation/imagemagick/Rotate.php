@@ -3,7 +3,7 @@
 namespace Drupal\imagemagick\Plugin\ImageToolkit\Operation\imagemagick;
 
 use Drupal\Component\Utility\Color;
-use Drupal\imagemagick\Rectangle;
+use Drupal\Component\Utility\Rectangle;
 
 /**
  * Defines imagemagick Rotate operation.
