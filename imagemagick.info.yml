@@ -4,3 +4,5 @@ name: ImageMagick
 description: 'Provides ImageMagick integration.'
 package: Media
 configure: system.image_toolkit_settings
+dependencies:
+  - system (>=8.1.0)
