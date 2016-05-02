@@ -46,7 +46,7 @@ class ToolkitImagemagickTest extends WebTestBase {
    *
    * @var array
    */
-  protected static $modules = array('system', 'simpletest', 'imagemagick');
+  protected static $modules = ['system', 'simpletest', 'file_test', 'imagemagick'];
 
   /**
    * {@inheritdoc}
@@ -434,6 +434,19 @@ class ToolkitImagemagickTest extends WebTestBase {
       $image_reloaded = $this->imageFactory->get($file_path);
       $this->assertTrue($image_reloaded->isValid(), "Image file '$file' loaded successfully.");
     }
+
+    // Test handling a file stored through a remote stream wrapper.
+
+    $image = $this->imageFactory->get('dummy-remote://image-test.png');
+    // Source file should be equal to the copied local temp source file.
+    $this->assertEqual(filesize('dummy-remote://image-test.png'), filesize($image->getToolkit()->getSourceLocalPath()));
+    $image->desaturate();
+    $image->save('dummy-remote://remote-image-test.png');
+    // Destination file should exists, and destination local temp file should
+    // have been reset.
+    $this->assertTrue(file_exists($image->getToolkit()->getDestination()));
+    $this->assertEqual('dummy-remote://remote-image-test.png', $image->getToolkit()->getDestination());
+    $this->assertIdentical('', $image->getToolkit()->getDestinationLocalPath());
 
     // Test retrieval of EXIF information.
 

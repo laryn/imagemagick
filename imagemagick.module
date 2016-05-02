@@ -5,7 +5,6 @@
  * Provides ImageMagick integration.
  */
 
-use Drupal\Core\StreamWrapper\LocalStream;
 use Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit;
 
 /**
@@ -21,11 +20,21 @@ function imagemagick_imagemagick_pre_parse_file_alter(ImagemagickToolkit $toolki
       $toolkit->setSourceLocalPath($source);
     }
     else {
-      // If the URI wrapper is a local stream, then assign the actual file
-      // path.
-      $wrapper = \Drupal::service('stream_wrapper_manager')->getViaUri($source);
-      if ($wrapper instanceof LocalStream) {
-        $toolkit->setSourceLocalPath(\Drupal::service('file_system')->realpath($source));
+      // If we can resolve the realpath of the file, then the file is local and
+      // we can assign the actual file path.
+      $file_system = \Drupal::service('file_system');
+      $path = $file_system->realpath($source);
+      if ($path) {
+        $toolkit->setSourceLocalPath($path);
+      }
+      else {
+        // We are working with a remote file, copy the remote source file to a
+        // temp one and set the local path to it.
+        $temp_path = $file_system->tempnam('temporary://', 'imagemagick_');
+        $file_system->unlink($temp_path);
+        $temp_path .= '.' . pathinfo($source, PATHINFO_EXTENSION);
+        $path = file_unmanaged_copy($toolkit->getSource(), $temp_path, FILE_EXISTS_ERROR);
+        $toolkit->setSourceLocalPath($file_system->realpath($path));
       }
     }
   }
@@ -52,11 +61,20 @@ function imagemagick_imagemagick_arguments_alter(ImagemagickToolkit $toolkit, $c
         $toolkit->setDestinationLocalPath($destination);
       }
       else {
-        // If the URI wrapper is a local stream, then assign the actual file
-        // path.
-        $wrapper = \Drupal::service('stream_wrapper_manager')->getViaUri($destination);
-        if ($wrapper instanceof LocalStream) {
-          $toolkit->setDestinationLocalPath(\Drupal::service('file_system')->realpath($destination));
+        // If we can resolve the realpath of the file, then the file is local
+        // and we can assign its real path.
+        $file_system = \Drupal::service('file_system');
+        $path = $file_system->realpath($destination);
+        if ($path) {
+          $toolkit->setDestinationLocalPath($path);
+        }
+        else {
+          // We are working with a remote file, set the local destination to
+          // a temp local file.
+          $temp_path = $file_system->tempnam('temporary://', 'imagemagick_');
+          $file_system->unlink($temp_path);
+          $temp_path .= '.' . pathinfo($destination, PATHINFO_EXTENSION);
+          $toolkit->setDestinationLocalPath($file_system->realpath($temp_path));
         }
       }
     }
@@ -84,5 +102,19 @@ function imagemagick_imagemagick_arguments_alter(ImagemagickToolkit $toolkit, $c
     if ($toolkit->findArgument('-quality') === FALSE) {
       $toolkit->addArgument('-quality ' . \Drupal::config('imagemagick.settings')->get('quality'));
     }
+  }
+}
+
+/**
+ * Implements hook_imagemagick_post_save_alter().
+ */
+function imagemagick_imagemagick_post_save_alter(ImagemagickToolkit $toolkit) {
+  $file_system = \Drupal::service('file_system');
+  $destination = $toolkit->getDestination();
+  $path = $file_system->realpath($destination);
+  if (!$path) {
+    // We are working with a remote file, so move the temp file to the final
+    // destination, replacing any existinf file with the same name.
+    file_unmanaged_move($toolkit->getDestinationLocalPath(), $toolkit->getDestination(), FILE_EXISTS_REPLACE);
   }
 }
