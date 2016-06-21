@@ -23,6 +23,9 @@ imagemagick.settings:
     use_identify:
       type: boolean
       label: 'Use identify command'
+    locale:
+      type: string
+      label: 'Locale for escaping shell commands'
     image_formats:
       type: sequence
       sequence:
