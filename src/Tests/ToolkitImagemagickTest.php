@@ -46,7 +46,7 @@ class ToolkitImagemagickTest extends WebTestBase {
    *
    * @var array
    */
-  protected static $modules = ['system', 'simpletest', 'file_test', 'imagemagick'];
+  protected static $modules = ['system', 'simpletest', 'file_test', 'imagemagick', 'file_mdm'];
 
   /**
    * {@inheritdoc}
@@ -279,23 +279,24 @@ class ToolkitImagemagickTest extends WebTestBase {
     $this->drupalGetTestFiles('image');
 
     foreach ($files as $file) {
+      $image_uri = 'public://' . $file;
       foreach ($operations as $op => $values) {
         // Load up a fresh image.
-        $image = $this->imageFactory->get('public://' . $file);
+        $image = $this->imageFactory->get($image_uri);
         if (!$image->isValid()) {
           $this->fail("Could not load image $file.");
           continue 2;
         }
 
         // Check that no multi-frame information is set.
-        $this->assertNull($image->getToolkit()->getFrames());
+        $this->assertIdentical(1, $image->getToolkit()->getFrames());
 
         // Perform our operation.
         $image->apply($values['function'], $values['arguments']);
 
         // Save image.
         $file_path = $this->testDirectory . '/' . $op . substr($file, -4);
-        $image->save($file_path);
+        $this->assertTrue($image->save($file_path));
 
         // Reload with GD to be able to check results at pixel level.
         $image = $this->imageFactory->get($file_path, 'gd');
@@ -430,7 +431,9 @@ class ToolkitImagemagickTest extends WebTestBase {
     ];
     foreach ($file_names as $file) {
       $file_path = $this->testDirectory . '/' . $file;
-      $image->save($file_path);
+      $image = $this->imageFactory->get(NULL);
+      $this->assertTrue($image->createNew(50, 20, 'png'));
+      $this->assertTrue($image->save($file_path));
       $image_reloaded = $this->imageFactory->get($file_path);
       $this->assertTrue($image_reloaded->isValid(), "Image file '$file' loaded successfully.");
     }
@@ -441,7 +444,7 @@ class ToolkitImagemagickTest extends WebTestBase {
     // Source file should be equal to the copied local temp source file.
     $this->assertEqual(filesize('dummy-remote://image-test.png'), filesize($image->getToolkit()->getSourceLocalPath()));
     $image->desaturate();
-    $image->save('dummy-remote://remote-image-test.png');
+    $this->assertTrue($image->save('dummy-remote://remote-image-test.png'));
     // Destination file should exists, and destination local temp file should
     // have been reset.
     $this->assertTrue(file_exists($image->getToolkit()->getDestination()));
@@ -507,11 +510,11 @@ class ToolkitImagemagickTest extends WebTestBase {
       ],
     ];
 
+    // Get images using 'identify'.
+    \Drupal::configFactory()->getEditable('imagemagick.settings')
+      ->set('use_identify', TRUE)
+      ->save();
     foreach($image_files as $image_file) {
-      // Get image using 'identify'.
-      \Drupal::configFactory()->getEditable('imagemagick.settings')
-        ->set('use_identify', TRUE)
-        ->save();
       $image = $this->imageFactory->get($image_file['source']);
       $this->assertIdentical($image_file['width'], $image->getWidth());
       $this->assertIdentical($image_file['height'], $image->getHeight());
@@ -519,7 +522,7 @@ class ToolkitImagemagickTest extends WebTestBase {
 
       // Scaling should preserve frames.
       $image->scale(30);
-      $image->save($image_file['destination']);
+      $this->assertTrue($image->save($image_file['destination']));
       $image = $this->imageFactory->get($image_file['destination']);
       $this->assertIdentical($image_file['scaled_width'], $image->getWidth());
       $this->assertIdentical($image_file['scaled_height'], $image->getHeight());
@@ -527,7 +530,7 @@ class ToolkitImagemagickTest extends WebTestBase {
 
       // Rotating should preserve frames.
       $image->rotate(24);
-      $image->save($image_file['destination']);
+      $this->assertTrue($image->save($image_file['destination']));
       $image = $this->imageFactory->get($image_file['destination']);
       $this->assertIdentical($image_file['rotated_width'], $image->getWidth());
       $this->assertIdentical($image_file['rotated_height'], $image->getHeight());
@@ -535,12 +538,12 @@ class ToolkitImagemagickTest extends WebTestBase {
 
       // Converting to PNG should drop frames.
       $image->convert('png');
-      $this->assertNull($image->getToolkit()->getFrames());
-      $image->save($image_file['destination']);
+      $this->assertTrue($image->save($image_file['destination']));
       $image = $this->imageFactory->get($image_file['destination']);
+      $this->assertIdentical(1, $image->getToolkit()->getFrames());
       $this->assertIdentical($image_file['rotated_width'], $image->getWidth());
       $this->assertIdentical($image_file['rotated_height'], $image->getHeight());
-      $this->assertNull($image->getToolkit()->getFrames());
+      $this->assertIdentical(1, $image->getToolkit()->getFrames());
     }
   }
 

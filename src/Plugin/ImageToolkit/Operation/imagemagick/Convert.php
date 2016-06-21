@@ -40,16 +40,7 @@ class Convert extends ImagemagickImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function execute(array $arguments) {
-    // When source image is multi-frame, convert only the first frame.
-    if ($this->getToolkit()->getFrames()) {
-      $path = $this->getToolkit()->getSourceLocalPath();
-      if (strripos($path, '[0]', -3) === FALSE) {
-        $this->getToolkit()->setSourceLocalPath($path . '[0]');
-      }
-    }
-    $this->getToolkit()
-      ->setFrames(NULL)
-      ->setDestinationFormatFromExtension($arguments['extension']);
+    $this->getToolkit()->setDestinationFormatFromExtension($arguments['extension']);
     return TRUE;
   }
 
