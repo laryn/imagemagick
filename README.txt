@@ -11,12 +11,19 @@ To submit bug reports and feature suggestions, or to track changes:
 
 -- REQUIREMENTS --
 
+* Drupal 8.1.0 or higher
+
 * Either ImageMagick (http://www.imagemagick.org) or GraphicsMagick
-  (http://www.graphicsmagick.org) need to be installed on your server
-  and the convert binary needs to be accessible and executable from PHP.
+  (http://www.graphicsmagick.org) need to be installed on your server and the
+  convert binary needs to be accessible and executable from PHP.
 
 * The PHP configuration must allow invocation of proc_open() (which is
   security-wise identical to exec()).
+
+* File Metadata Manager module 8.x-1.0-beta1 or higher
+
+* Composer based installation process is needed to install the module
+  dependencies, see https://www.drupal.org/node/2718229
 
 Consult your server administrator or hosting provider if you are unsure about
 these requirements.
@@ -24,7 +31,18 @@ these requirements.
 
 -- INSTALLATION --
 
-* Install as usual, see https://drupal.org/node/70151 for further information.
+* Install the required module packages with Composer. From the Drupal
+  installation root directory, type
+
+    $ composer require drupal/imagemagick:~2.0
+
+  This will download both the ImageMagick module and any dependent module
+  (namely, the File Metadata Manager module).
+
+* Enable the module. Navigate to Manage > Extend. Check the box next to the
+  ImageMagick module and then click the 'Install' button at the bottom. If
+  File Metadata Manager is not already installed, the system will prompt you
+  to confirm installing it too. Just confirm and proceed.
 
 
 -- CONFIGURATION --
