@@ -331,6 +331,20 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
       }
     }
 
+    // Files in temporary:// must not be cached.
+    $config->set('use_identify', TRUE)->save();
+    file_unmanaged_copy(drupal_get_path('module', 'imagemagick') . '/misc/test-multi-frame.gif', 'temporary://', FILE_EXISTS_REPLACE);
+    $source_uri = 'temporary://test-multi-frame.gif';
+    $fmdm->release($source_uri);
+    $source_image_md = $fmdm->uri($source_uri);
+    $this->assertIdentical(FileMetadataInterface::NOT_LOADED, $source_image_md->isMetadataLoaded('imagemagick_identify'));
+    $source_image = $this->imageFactory->get($source_uri);
+    $this->assertIdentical(FileMetadataInterface::LOADED_FROM_FILE, $source_image_md->isMetadataLoaded('imagemagick_identify'));
+    $fmdm->release($source_uri);
+    $source_image_md = $fmdm->uri($source_uri);
+    $source_image = $this->imageFactory->get($source_uri);
+    $this->assertIdentical(FileMetadataInterface::LOADED_FROM_FILE, $source_image_md->isMetadataLoaded('imagemagick_identify'));
+
     // Open source images again after deleting the temp folder files.
     // Source image data should now be cached, but temp files non existing.
     // Therefore we test that the toolkit can create a new temp file copy.

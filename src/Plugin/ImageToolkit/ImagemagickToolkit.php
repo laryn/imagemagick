@@ -1119,8 +1119,8 @@ class ImagemagickToolkit extends ImageToolkitBase {
     if (!$config->get('use_identify') || !$config->get('parse_caching.enabled')) {
       return FALSE;
     }
-    // URIs without valid scheme are not cached.
-    if (!file_valid_uri($uri)) {
+    // URIs without valid scheme, and temporary:// URIs are not cached.
+    if (!file_valid_uri($uri) || file_uri_scheme($uri) === 'temporary') {
       return FALSE;
     }
     // URIs falling into disallowed paths are not cached.
