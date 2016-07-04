@@ -59,6 +59,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
    */
   public function testFileMetadata() {
     $config = \Drupal::configFactory()->getEditable('imagemagick.settings');
+    $config_mdm = \Drupal::configFactory()->getEditable('file_mdm.settings');
 
     // The test can only be executed if the ImageMagick 'convert' is
     // available on the shell path.
@@ -149,7 +150,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
       $config->set('use_identify', $parsing_method === 'imagemagick_identify')->save();
 
       // Perform tests without caching.
-      $config->set('parse_caching.enabled', FALSE)->save();
+      $config_mdm->set('metadata_cache.enabled', FALSE)->save();
       foreach ($files as $source_uri => $source_image_data) {
         $this->assertFalse($fmdm->has($source_uri));
         $source_image_md = $fmdm->uri($source_uri);
@@ -235,7 +236,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
       }
 
       // Perform tests with caching.
-      $config->set('parse_caching.enabled', TRUE)->save();
+      $config_mdm->set('metadata_cache.enabled', TRUE)->save();
       foreach ($files as $source_uri => $source_image_data) {
         $first = TRUE;
         file_unmanaged_delete_recursive($this->testDirectory);
@@ -247,7 +248,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
           $this->assertTrue($fmdm->has($source_uri));
           $this->assertIdentical(FileMetadataInterface::NOT_LOADED, $source_image_md->isMetadataLoaded($parsing_method));
           $source_image = $this->imageFactory->get($source_uri);
-          if ($first || $parsing_method == 'getimagesize') {
+          if ($first) {
             // First time load, metadata loaded from file.
             $this->assertIdentical(FileMetadataInterface::LOADED_FROM_FILE, $source_image_md->isMetadataLoaded($parsing_method));
           }
@@ -297,12 +298,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
           $this->assertIdentical(FileMetadataInterface::NOT_LOADED, $saved_image_md->isMetadataLoaded($parsing_method));
           // Get metadata from cache.
           $metadata = $saved_image_md->getMetadata($parsing_method);
-          if ($parsing_method === 'imagemagick_identify') {
-            $this->assertIdentical(FileMetadataInterface::LOADED_FROM_CACHE, $saved_image_md->isMetadataLoaded($parsing_method));
-          }
-          else {
-            $this->assertIdentical(FileMetadataInterface::LOADED_FROM_FILE, $saved_image_md->isMetadataLoaded($parsing_method));
-          }
+          $this->assertIdentical(FileMetadataInterface::LOADED_FROM_CACHE, $saved_image_md->isMetadataLoaded($parsing_method));
           switch ($parsing_method) {
             case 'imagemagick_identify':
               if (!isset($source_image_data['skip_dimensions_check'])) {
@@ -329,33 +325,15 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
           $first = FALSE;
         }
       }
-    }
 
-    // Files in temporary:// must not be cached.
-    $config->set('use_identify', TRUE)->save();
-    file_unmanaged_copy(drupal_get_path('module', 'imagemagick') . '/misc/test-multi-frame.gif', 'temporary://', FILE_EXISTS_REPLACE);
-    $source_uri = 'temporary://test-multi-frame.gif';
-    $fmdm->release($source_uri);
-    $source_image_md = $fmdm->uri($source_uri);
-    $this->assertIdentical(FileMetadataInterface::NOT_LOADED, $source_image_md->isMetadataLoaded('imagemagick_identify'));
-    $source_image = $this->imageFactory->get($source_uri);
-    $this->assertIdentical(FileMetadataInterface::LOADED_FROM_FILE, $source_image_md->isMetadataLoaded('imagemagick_identify'));
-    $fmdm->release($source_uri);
-    $source_image_md = $fmdm->uri($source_uri);
-    $source_image = $this->imageFactory->get($source_uri);
-    $this->assertIdentical(FileMetadataInterface::LOADED_FROM_FILE, $source_image_md->isMetadataLoaded('imagemagick_identify'));
-
-    // Open source images again after deleting the temp folder files.
-    // Source image data should now be cached, but temp files non existing.
-    // Therefore we test that the toolkit can create a new temp file copy.
-    $this->assertTrue(count(file_scan_directory('temporary://', '/imagemagick*.*/') > 0));
-    foreach (file_scan_directory('temporary://', '/imagemagick*.*/') as $file) {
-      file_unmanaged_delete($file->uri);
-    }
-    $this->assertEqual(0, count(file_scan_directory('temporary://', '/imagemagick*.*/')));
-    foreach (['imagemagick_identify', 'getimagesize'] as $parsing_method) {
-      // Set parsing method.
-      $config->set('use_identify', $parsing_method === 'imagemagick_identify')->save();
+      // Open source images again after deleting the temp folder files.
+      // Source image data should now be cached, but temp files non existing.
+      // Therefore we test that the toolkit can create a new temp file copy.
+      $this->assertTrue(count(file_scan_directory('temporary://', '/imagemagick*.*/') > 0));
+      foreach (file_scan_directory('temporary://', '/imagemagick*.*/') as $file) {
+        file_unmanaged_delete($file->uri);
+      }
+      $this->assertEqual(0, count(file_scan_directory('temporary://', '/imagemagick*.*/')));
       foreach ($files as $source_uri => $source_image_data) {
         file_unmanaged_delete_recursive($this->testDirectory);
         file_prepare_directory($this->testDirectory, FILE_CREATE_DIRECTORY);
@@ -365,14 +343,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
           $source_image_md = $fmdm->uri($source_uri);
           $this->assertIdentical(FileMetadataInterface::NOT_LOADED, $source_image_md->isMetadataLoaded($parsing_method));
           $source_image = $this->imageFactory->get($source_uri);
-          if ($parsing_method === 'getimagesize') {
-            // 'getimagesize', metadata loaded from file.
-            $this->assertIdentical(FileMetadataInterface::LOADED_FROM_FILE, $source_image_md->isMetadataLoaded($parsing_method));
-          }
-          else {
-            // Metadata loaded from cache.
-            $this->assertIdentical(FileMetadataInterface::LOADED_FROM_CACHE, $source_image_md->isMetadataLoaded($parsing_method));
-          }
+          $this->assertIdentical(FileMetadataInterface::LOADED_FROM_CACHE, $source_image_md->isMetadataLoaded($parsing_method));
           $this->assertIdentical($source_image_data['mimetype'], $source_image->getMimeType());
           if (!isset($source_image_data['skip_dimensions_check'])) {
             $this->assertIdentical($source_image_data['height'], $source_image->getHeight());
@@ -415,12 +386,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
           $this->assertIdentical(FileMetadataInterface::NOT_LOADED, $saved_image_md->isMetadataLoaded($parsing_method));
           // Get metadata from cache.
           $metadata = $saved_image_md->getMetadata($parsing_method);
-          if ($parsing_method === 'imagemagick_identify') {
-            $this->assertIdentical(FileMetadataInterface::LOADED_FROM_CACHE, $saved_image_md->isMetadataLoaded($parsing_method));
-          }
-          else {
-            $this->assertIdentical(FileMetadataInterface::LOADED_FROM_FILE, $saved_image_md->isMetadataLoaded($parsing_method));
-          }
+          $this->assertIdentical(FileMetadataInterface::LOADED_FROM_CACHE, $saved_image_md->isMetadataLoaded($parsing_method));
           switch ($parsing_method) {
             case 'imagemagick_identify':
               if (!isset($source_image_data['skip_dimensions_check'])) {
@@ -439,14 +405,33 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
           }
           $fmdm->release($saved_uri);
         }
+        $fmdm->release($source_uri);
+        $this->assertFalse($fmdm->has($source_uri));
       }
     }
 
+    // Files in temporary:// must not be cached.
+    $config->set('use_identify', TRUE)->save();
+    file_unmanaged_copy(drupal_get_path('module', 'imagemagick') . '/misc/test-multi-frame.gif', 'temporary://', FILE_EXISTS_REPLACE);
+    $source_uri = 'temporary://test-multi-frame.gif';
+    $fmdm->release($source_uri);
+    $source_image_md = $fmdm->uri($source_uri);
+    $this->assertIdentical(FileMetadataInterface::NOT_LOADED, $source_image_md->isMetadataLoaded('imagemagick_identify'));
+    $source_image = $this->imageFactory->get($source_uri);
+    $this->assertIdentical(FileMetadataInterface::LOADED_FROM_FILE, $source_image_md->isMetadataLoaded('imagemagick_identify'));
+    $fmdm->release($source_uri);
+    $source_image_md = $fmdm->uri($source_uri);
+    $source_image = $this->imageFactory->get($source_uri);
+    $this->assertIdentical(FileMetadataInterface::LOADED_FROM_FILE, $source_image_md->isMetadataLoaded('imagemagick_identify'));
+
     // Invalidate cache, and open source images again. Now, all files should be
     // parsed again.
-    Cache::InvalidateTags(['file_mdm:imagemagick_identify']);
+    Cache::InvalidateTags([
+      'config:imagemagick.file_metadata_plugin.imagemagick_identify',
+      'config:file_mdm.file_metadata_plugin.getimagesize'
+    ]);
     // Disallow caching on the test results directory.
-    $config->set('parse_caching.disallowed_paths', ['public://imagetest/*'])->save();
+    $config_mdm->set('metadata_cache.disallowed_paths', ['public://imagetest/*'])->save();
     foreach ($files as $source_uri => $source_image_data) {
       $fmdm->release($source_uri);
     }

@@ -9,11 +9,11 @@ use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\ImageToolkit\ImageToolkitBase;
 use Drupal\Core\ImageToolkit\ImageToolkitOperationManagerInterface;
+use Drupal\Core\Link;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Url;
 use Drupal\file_mdm\FileMetadataManagerInterface;
@@ -58,13 +58,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @var \Drupal\file_mdm\FileMetadataManagerInterface
    */
   protected $fileMetadataManager;
-
-  /**
-   * The date formatter service.
-   *
-   * @var \Drupal\Core\Datetime\DateFormatterInterface
-   */
-  protected $dateFormatter;
 
   /**
    * The current user.
@@ -166,18 +159,15 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   The app root.
    * @param \Drupal\file_mdm\FileMetadataManagerInterface $file_metadata_manager
    *   The file metadata manager service.
-   * @param \Drupal\Core\Datetime\DateFormatterInterface $date_formatter
-   *   The date formatter service.
    * @param \Drupal\Core\Session\AccountProxyInterface $current_user
    *   The current user.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ImageToolkitOperationManagerInterface $operation_manager, LoggerInterface $logger, ConfigFactoryInterface $config_factory, ModuleHandlerInterface $module_handler, ImagemagickFormatMapperInterface $format_mapper, $app_root, FileMetadataManagerInterface $file_metadata_manager, DateFormatterInterface $date_formatter, AccountProxyInterface $current_user) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ImageToolkitOperationManagerInterface $operation_manager, LoggerInterface $logger, ConfigFactoryInterface $config_factory, ModuleHandlerInterface $module_handler, ImagemagickFormatMapperInterface $format_mapper, $app_root, FileMetadataManagerInterface $file_metadata_manager, AccountProxyInterface $current_user) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $operation_manager, $logger, $config_factory);
     $this->moduleHandler = $module_handler;
     $this->formatMapper = $format_mapper;
     $this->appRoot = $app_root;
     $this->fileMetadataManager = $file_metadata_manager;
-    $this->dateFormatter = $date_formatter;
     $this->currentUser = $current_user;
   }
 
@@ -196,7 +186,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
       $container->get('imagemagick.format_mapper'),
       $container->get('app.root'),
       $container->get('file_metadata_manager'),
-      $container->get('date.formatter'),
       $container->get('current_user')
     );
   }
@@ -337,41 +326,18 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#default_value' => $config->get('use_identify'),
       '#description' => $this->t('Use the <kbd>identify</kbd> command to parse image files to determine image format and dimensions. If not selected, the PHP <kbd>getimagesize</kbd> function will be used, BUT this will limit the image formats supported by the toolkit.'),
     ];
-    // Cache identify metadata.
-    $form['exec']['identify_cache'] = [
-      '#type' => 'details',
-      '#open' => TRUE,
-      '#collapsible' => FALSE,
-      '#title' => $this->t('Identify caching'),
-      '#states' => [
-        'visible' => [
-          ':input[name="imagemagick[exec][use_identify]"]' => ['checked' => TRUE],
-        ],
-      ],
-    ];
-    $form['exec']['identify_cache']['enabled'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Cache "identify" metadata'),
-      '#default_value' => $config->get('parse_caching.enabled'),
-      '#description' => $this->t("If selected, results of the <kbd>identify</kbd> command will be cached. This will reduce file I/O and <kbd>shell</kbd> calls."),
-    ];
-    $options = [86400, 172800, 604800, 1209600, 3024000, 7862400];
-    $options = array_map([$this->dateFormatter, 'formatInterval'], array_combine($options, $options));
-    $options = [-1 => $this->t('Never')] + $options;
-    $form['exec']['identify_cache']['expiration'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Cache expires'),
-      '#default_value' => $config->get('parse_caching.expiration'),
-      '#options' => $options,
-      '#description' => $this->t("Specify the required lifetime of cached entries. Longer times may lead to increased cache sizes."),
-    ];
-    $form['exec']['identify_cache']['disallowed_paths'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('Excluded paths'),
-      '#rows' => 3,
-      '#default_value' => implode("\n", $config->get('parse_caching.disallowed_paths')),
-      '#description' => $this->t("Only files prefixed by a valid URI scheme will be cached, like for example <kbd>public://</kbd>. Files in the <kbd>temporary://</kbd> scheme will never be cached. Specify here if there are any paths to be additionally <strong>excluded</strong> from caching, one per line. Use wildcard patterns when entering the path. For example, <kbd>public://styles/*</kbd>."),
-    ];
+    // Cache metadata.
+    $configure_link = Link::fromTextAndUrl(
+      $this->t('Configure File Metadata Manager'),
+      Url::fromRoute('file_mdm.settings')
+    );
+    $form['exec']['metadata_caching'] = array(
+      '#type' => 'item',
+      '#title' => $this->t("Cache image metadata"),
+      '#description' => $this->t("The File Metadata Manager module allows to cache image metadata. This reduces file I/O and <kbd>shell</kbd> calls. @configure.", [
+        '@configure' => $configure_link->toString(),
+      ]),
+    );
     // Prepend arguments.
     $form['exec']['prepend'] = array(
       '#type' => 'textfield',
@@ -537,16 +503,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
         $form_state->setErrorByName('imagemagick][suite][path_to_binaries', new FormattableMarkup(implode('<br />', $status['errors']), []));
       }
     }
-    // Validate cache exclusion paths.
-    if (!empty($disallowed_paths = $form_state->getValue(['imagemagick', 'exec', 'identify_cache', 'disallowed_paths']))) {
-      $disallowed_paths = preg_replace('/\r/', '', $disallowed_paths);
-      $paths = explode("\n", $disallowed_paths);
-      foreach ($paths as $path) {
-        if (!file_valid_uri($path)) {
-          $form_state->setErrorByName('imagemagick][exec][identify_cache][disallowed_paths', $this->t("'@path' is an invalid URI path", ['@path' => $path]));
-        }
-      }
-    }
   }
 
   /**
@@ -566,35 +522,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
       ->set('advanced.density', (int) $form_state->getValue(['imagemagick', 'advanced', 'density']))
       ->set('advanced.colorspace', (string) $form_state->getValue(['imagemagick', 'advanced', 'colorspace']))
       ->set('advanced.profile', (string) $form_state->getValue(['imagemagick', 'advanced', 'profile']));
-
-    // Cache related, should invalidate cache if there are changes in settings.
-    $needs_cache_invalidation = FALSE;
-
-    $enabled = (bool) $form_state->getValue(['imagemagick', 'exec', 'identify_cache', 'enabled']);
-    if ($enabled != $config->get('parse_caching.enabled')) {
-      $config->set('parse_caching.enabled', $enabled);
-      $needs_cache_invalidation = TRUE;
-    }
-    $expiration = (int) $form_state->getValue(['imagemagick', 'exec', 'identify_cache', 'expiration']);
-    if ($expiration != $config->get('parse_caching.expiration')) {
-      $config->set('parse_caching.expiration', $expiration);
-      $needs_cache_invalidation = TRUE;
-    }
-    $disallowed_paths = (string) $form_state->getValue(['imagemagick', 'exec', 'identify_cache', 'disallowed_paths']);
-    if (!empty($disallowed_paths)) {
-      $disallowed_paths = explode("\n", preg_replace('/\r/', '', $disallowed_paths));
-    }
-    else {
-      $disallowed_paths = [];
-    }
-    if ($disallowed_paths != $config->get('parse_caching.disallowed_paths')) {
-      $config->set('parse_caching.disallowed_paths', $disallowed_paths);
-      $needs_cache_invalidation = TRUE;
-    }
-    if ($needs_cache_invalidation) {
-      Cache::InvalidateTags(['file_mdm:imagemagick_identify']);
-    }
-
     $config->save();
   }
 
@@ -1041,18 +968,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
       $this->setSourceLocalPath($source_local_path);
     }
 
-    // Cache metadata, if required.
-    if ($this->isUriFileMetadataCacheable($this->getSource())) {
-      $file_md->removeMetadata('imagemagick_identify', 'source_local_path');
-      $expiration = $config->get('parse_caching.expiration');
-      if ($expiration === -1) {
-        $file_md->saveMetadataToCache('imagemagick_identify', ['file_mdm:imagemagick_identify'], Cache::PERMANENT);
-      }
-      else {
-        $file_md->saveMetadataToCache('imagemagick_identify', ['file_mdm:imagemagick_identify'], time() + $expiration);
-      }
-    }
-
     // Process parsed data from the first frame.
     $format = $file_md->getMetadata('imagemagick_identify', 'format');
     if ($this->formatMapper->isFormatEnabled($format)) {
@@ -1102,34 +1017,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
     }
 
     return FALSE;
-  }
-
-  /**
-   * Checks if image file metadata is cacheable.
-   *
-   * @param string $uri
-   *   The URI of the image file.
-   *
-   * @return bool
-   *   TRUE if file metadata is cacheable based on settings, FALSE otherwise.
-   */
-  protected function isUriFileMetadataCacheable($uri) {
-    $config = $this->configFactory->get('imagemagick.settings');
-    // Only cache results of 'identify' and if caching is enabled.
-    if (!$config->get('use_identify') || !$config->get('parse_caching.enabled')) {
-      return FALSE;
-    }
-    // URIs without valid scheme, and temporary:// URIs are not cached.
-    if (!file_valid_uri($uri) || file_uri_scheme($uri) === 'temporary') {
-      return FALSE;
-    }
-    // URIs falling into disallowed paths are not cached.
-    foreach ($config->get('parse_caching.disallowed_paths') as $pattern) {
-      if (fnmatch($pattern, $uri)) {
-        return FALSE;
-      }
-    }
-    return TRUE;
   }
 
   /**
@@ -1237,9 +1124,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
     // Delete any cached file metadata for the image file, before creating
     // a new one, and release the URI from the manager so that metadata will
     // not stick in the same request.
-    if ($config->get('parse_caching.enabled')) {
-      $this->fileMetadataManager->deleteCachedMetadata($this->getDestination());
-    }
+    $this->fileMetadataManager->deleteCachedMetadata($this->getDestination());
     $this->fileMetadataManager->release($this->getDestination());
 
     // Execute the 'convert' or 'gm' command.
@@ -1258,18 +1143,9 @@ class ImagemagickToolkit extends ImageToolkitBase {
             'exif_orientation' => $this->getExifOrientation(),
           ],
         ],
+        'source_local_path' => $this->getDestinationLocalPath(),
       ];
       $destination_image_md->loadMetadata('imagemagick_identify', $metadata);
-      if ($this->isUriFileMetadataCacheable($this->getDestination())) {
-        $expiration = $config->get('parse_caching.expiration');
-        if ($expiration === -1) {
-          $destination_image_md->saveMetadataToCache('imagemagick_identify', ['file_mdm:imagemagick_identify'], Cache::PERMANENT);
-        }
-        else {
-          $destination_image_md->saveMetadataToCache('imagemagick_identify', ['file_mdm:imagemagick_identify'], time() + $expiration);
-        }
-      }
-      $destination_image_md->setMetadata('imagemagick_identify', 'source_local_path', $this->getDestinationLocalPath());
     }
 
     return $success;

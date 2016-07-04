@@ -3,6 +3,7 @@
 namespace Drupal\imagemagick\Plugin\FileMetadata;
 
 use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\ImageToolkit\ImageToolkitManager;
 use Drupal\file_mdm\FileMetadataException;
 use Drupal\file_mdm\Plugin\FileMetadata\FileMetadataPluginBase;
@@ -37,11 +38,13 @@ class ImagemagickIdentify extends FileMetadataPluginBase {
    *   The plugin implementation definition.
    * @param \Drupal\Core\Cache\CacheBackendInterface $cache_service
    *   The cache service.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory.
    * @param \Drupal\Core\ImageToolkit\ImageToolkitManager $image_toolkit_manager
    *   The image toolkit plugin manager.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, CacheBackendInterface $cache_service, ImageToolkitManager $image_toolkit_manager) {
-    parent::__construct($configuration, $plugin_id, $plugin_definition, $cache_service);
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, CacheBackendInterface $cache_service, ConfigFactoryInterface $config_factory, ImageToolkitManager $image_toolkit_manager) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition, $cache_service, $config_factory);
     $this->imageToolkitManager = $image_toolkit_manager;
   }
 
@@ -54,6 +57,7 @@ class ImagemagickIdentify extends FileMetadataPluginBase {
       $plugin_id,
       $plugin_definition,
       $container->get('cache.file_mdm'),
+      $container->get('config.factory'),
       $container->get('image.toolkit.manager')
     );
   }
@@ -79,7 +83,7 @@ class ImagemagickIdentify extends FileMetadataPluginBase {
    */
   protected function doGetMetadataFromFile() {
     $toolkit = $this->imageToolkitManager->createInstance('imagemagick');
-    $toolkit->setSource($this->getUri());
+    $toolkit->setSource($this->getLocalTempPath());
     return $toolkit->identify();
   }
 
@@ -162,6 +166,16 @@ class ImagemagickIdentify extends FileMetadataPluginBase {
         return FALSE;
 
     }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function getMetadataToCache() {
+    $metadata = $this->metadata;
+    // Avoid caching the source_local_path.
+    unset($metadata['source_local_path']);
+    return $metadata;
   }
 
 }

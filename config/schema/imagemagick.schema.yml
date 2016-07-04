@@ -43,18 +43,12 @@ imagemagick.settings:
         profile:
           type: string
           label: 'Color profile path'
-    parse_caching:
-      type: mapping
-      label: 'Settings for image parse caching'
-      mapping:
-        enabled:
-          type: boolean
-          label: 'Enable image parse caching'
-        expiration:
-          type: integer
-          label: 'Cache entry duration'
-        disallowed_paths:
-          type: sequence
-          label: 'Paths to be excluded from caching'
-          sequence:
-            type: string
+
+
+imagemagick.file_metadata_plugin.imagemagick_identify:
+  type: config_object
+  label: 'imagemagick_identify file metadata plugin settings'
+  mapping:
+    configuration:
+      type: file_mdm.plugin.configuration
+      label: 'imagemagick_identify plugin settings'

@@ -9,10 +9,6 @@ advanced:
   density: 0
   colorspace: '0'
   profile: ''
-parse_caching:
-  enabled: TRUE
-  expiration: 172800
-  disallowed_paths: {  }
 image_formats:
   PNG:
     mime_type: image/png
