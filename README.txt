@@ -20,7 +20,7 @@ To submit bug reports and feature suggestions, or to track changes:
 * The PHP configuration must allow invocation of proc_open() (which is
   security-wise identical to exec()).
 
-* File Metadata Manager module 8.x-1.0-beta1 or higher
+* File Metadata Manager module 8.x-1.0-beta2 or higher
 
 * Composer based installation process is needed to install the module
   dependencies, see https://www.drupal.org/node/2718229
