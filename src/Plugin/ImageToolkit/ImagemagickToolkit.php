@@ -1094,7 +1094,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    */
   public function identify() {
     // Add -format argument.
-    $this->addArgument('-format ' . $this->escapeShellArg("format:%m|width:%[width]|height:%[height]|exif_orientation:%[EXIF:Orientation]\\n"));
+    $this->addArgument('-format ' . $this->escapeShellArg("format:%[magick]|width:%[width]|height:%[height]|exif_orientation:%[EXIF:Orientation]\\n"));
 
     // Allow modules to alter source file and the command line parameters.
     $command = 'identify';
