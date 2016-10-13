@@ -127,7 +127,7 @@ class ToolkitImagemagickTest extends WebTestBase {
 
     // The test can only be executed if the ImageMagick 'convert' is
     // available on the shell path.
-    $status = \Drupal::service('image.toolkit.manager')->createInstance('imagemagick')->checkPath('');
+    $status = \Drupal::service('imagemagick.exec_manager')->checkPath('');
     if (!empty($status['errors'])) {
       // Bots running automated test on d.o. do not have ImageMagick
       // installed, so there's no purpose to try and run this test there;

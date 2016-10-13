@@ -4,9 +4,11 @@ namespace Drupal\imagemagick\Plugin\FileMetadata;
 
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\ImageToolkit\ImageToolkitManager;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\file_mdm\FileMetadataException;
 use Drupal\file_mdm\Plugin\FileMetadata\FileMetadataPluginBase;
+use Drupal\imagemagick\ImagemagickExecArguments;
+use Drupal\imagemagick\ImagemagickExecManagerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -21,11 +23,18 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class ImagemagickIdentify extends FileMetadataPluginBase {
 
   /**
-   * The image toolkit plugin manager.
+   * The module handler service.
    *
-   * @var \Drupal\Core\ImageToolkit\ImageToolkitManager
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
    */
-  protected $imageToolkitManager;
+  protected $moduleHandler;
+
+  /**
+   * The ImageMagick execution manager service.
+   *
+   * @var \Drupal\imagemagick\ImagemagickExecManagerInterface
+   */
+  protected $execManager;
 
   /**
    * Constructs an ImagemagickIdentify plugin.
@@ -40,12 +49,15 @@ class ImagemagickIdentify extends FileMetadataPluginBase {
    *   The cache service.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
-   * @param \Drupal\Core\ImageToolkit\ImageToolkitManager $image_toolkit_manager
-   *   The image toolkit plugin manager.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
+   *   The module handler service.
+   * @param \Drupal\imagemagick\ImagemagickExecManagerInterface $exec_manager
+   *   The ImageMagick execution manager service.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, CacheBackendInterface $cache_service, ConfigFactoryInterface $config_factory, ImageToolkitManager $image_toolkit_manager) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, CacheBackendInterface $cache_service, ConfigFactoryInterface $config_factory, ModuleHandlerInterface $module_handler, ImagemagickExecManagerInterface $exec_manager) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $cache_service, $config_factory);
-    $this->imageToolkitManager = $image_toolkit_manager;
+    $this->moduleHandler = $module_handler;
+    $this->execManager = $exec_manager;
   }
 
   /**
@@ -58,7 +70,8 @@ class ImagemagickIdentify extends FileMetadataPluginBase {
       $plugin_definition,
       $container->get('cache.file_mdm'),
       $container->get('config.factory'),
-      $container->get('image.toolkit.manager')
+      $container->get('module_handler'),
+      $container->get('imagemagick.exec_manager')
     );
   }
 
@@ -82,9 +95,7 @@ class ImagemagickIdentify extends FileMetadataPluginBase {
    * {@inheritdoc}
    */
   protected function doGetMetadataFromFile() {
-    $toolkit = $this->imageToolkitManager->createInstance('imagemagick');
-    $toolkit->setSource($this->getLocalTempPath());
-    return $toolkit->identify();
+    return $this->identify();
   }
 
   /**
@@ -176,6 +187,57 @@ class ImagemagickIdentify extends FileMetadataPluginBase {
     // Avoid caching the source_local_path.
     unset($metadata['source_local_path']);
     return $metadata;
+  }
+
+  /**
+   * Calls the identify executable on the specified file.
+   *
+   * @return array
+   *   The array with identify metadata, if the file was parsed correctly.
+   *   NULL otherwise.
+   */
+  protected function identify() {
+    $arguments = new ImagemagickExecArguments();
+
+    // Add source file.
+    $arguments->setSource($this->getLocalTempPath());
+
+    // Add -format argument.
+    $arguments->addArgument('-format ' . $this->execManager->escapeShellArg("format:%[magick]|width:%[width]|height:%[height]|exif_orientation:%[EXIF:Orientation]\\n"));
+
+    // Allow modules to alter source file and the command line parameters.
+    $command = 'identify';
+    $this->moduleHandler->alter('imagemagick_pre_parse_file', $arguments);
+    $this->moduleHandler->alter('imagemagick_arguments', $arguments, $command);
+
+    // Execute the 'identify' command.
+    $output = NULL;
+    $ret = $this->execManager->execute($command, $arguments, $output);
+
+    // Process results.
+    $data = [];
+    if ($ret) {
+      // Builds the frames info.
+      $frames = [];
+      $frames_tmp = explode("\n", $output);
+      // Remove empty items at the end of the array.
+      while (empty($frames_tmp[count($frames_tmp) - 1])) {
+        array_pop($frames_tmp);
+      }
+      foreach ($frames_tmp as $i => $frame) {
+        $info = explode('|', $frame);
+        foreach ($info as $item) {
+          list($key, $value) = explode(':', $item);
+          $frames[$i][trim($key)] = trim($value);
+        }
+      }
+      $data['frames'] = $frames;
+      // Adds the local file path that was resolved via
+      // hook_imagemagick_pre_parse_file implementations.
+      $data['source_local_path'] = $arguments->getSourceLocalPath();
+    }
+
+    return ($ret === TRUE) ? $data : NULL;
   }
 
 }

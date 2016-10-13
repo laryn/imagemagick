@@ -5,19 +5,19 @@
  * Provides ImageMagick integration.
  */
 
-use Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit;
+use Drupal\imagemagick\ImagemagickExecArguments;
 
 /**
  * Implements hook_imagemagick_pre_parse_file_alter().
  */
-function imagemagick_imagemagick_pre_parse_file_alter(ImagemagickToolkit $toolkit) {
+function imagemagick_imagemagick_pre_parse_file_alter(ImagemagickExecArguments $arguments) {
   // Convert source image URI to filepath.
-  $local_path = $toolkit->getSourceLocalPath();
+  $local_path = $arguments->getSourceLocalPath();
   if (empty($local_path)) {
-    $source = $toolkit->getSource();
+    $source = $arguments->getSource();
     if (!file_valid_uri($source)) {
       // The value of $source is likely a file path already.
-      $toolkit->setSourceLocalPath($source);
+      $arguments->setSourceLocalPath($source);
     }
     else {
       // If we can resolve the realpath of the file, then the file is local and
@@ -25,7 +25,7 @@ function imagemagick_imagemagick_pre_parse_file_alter(ImagemagickToolkit $toolki
       $file_system = \Drupal::service('file_system');
       $path = $file_system->realpath($source);
       if ($path) {
-        $toolkit->setSourceLocalPath($path);
+        $arguments->setSourceLocalPath($path);
       }
       else {
         // We are working with a remote file, copy the remote source file to a
@@ -33,8 +33,8 @@ function imagemagick_imagemagick_pre_parse_file_alter(ImagemagickToolkit $toolki
         $temp_path = $file_system->tempnam('temporary://', 'imagemagick_');
         $file_system->unlink($temp_path);
         $temp_path .= '.' . pathinfo($source, PATHINFO_EXTENSION);
-        $path = file_unmanaged_copy($toolkit->getSource(), $temp_path, FILE_EXISTS_ERROR);
-        $toolkit->setSourceLocalPath($file_system->realpath($path));
+        $path = file_unmanaged_copy($arguments->getSource(), $temp_path, FILE_EXISTS_ERROR);
+        $arguments->setSourceLocalPath($file_system->realpath($path));
       }
     }
   }
@@ -43,22 +43,22 @@ function imagemagick_imagemagick_pre_parse_file_alter(ImagemagickToolkit $toolki
 /**
  * Implements hook_imagemagick_arguments_alter().
  */
-function imagemagick_imagemagick_arguments_alter(ImagemagickToolkit $toolkit, $command) {
+function imagemagick_imagemagick_arguments_alter(ImagemagickExecArguments $arguments, $command) {
   $config = \Drupal::config('imagemagick.settings');
 
   // Add prepended arguments if needed.
   if ($prepend = $config->get('prepend')) {
-    $toolkit->prependArgument($prepend);
+    $arguments->prependArgument($prepend);
   }
 
   if ($command == 'convert' || $command == 'gm') {
     // Convert destination image URI to filepath.
-    $local_path = $toolkit->getDestinationLocalPath();
+    $local_path = $arguments->getDestinationLocalPath();
     if (empty($local_path)) {
-      $destination = $toolkit->getDestination();
+      $destination = $arguments->getDestination();
       if (!file_valid_uri($destination)) {
         // The value of $destination is likely a file path already.
-        $toolkit->setDestinationLocalPath($destination);
+        $arguments->setDestinationLocalPath($destination);
       }
       else {
         // If we can resolve the realpath of the file, then the file is local
@@ -66,7 +66,7 @@ function imagemagick_imagemagick_arguments_alter(ImagemagickToolkit $toolkit, $c
         $file_system = \Drupal::service('file_system');
         $path = $file_system->realpath($destination);
         if ($path) {
-          $toolkit->setDestinationLocalPath($path);
+          $arguments->setDestinationLocalPath($path);
         }
         else {
           // We are working with a remote file, set the local destination to
@@ -74,33 +74,33 @@ function imagemagick_imagemagick_arguments_alter(ImagemagickToolkit $toolkit, $c
           $temp_path = $file_system->tempnam('temporary://', 'imagemagick_');
           $file_system->unlink($temp_path);
           $temp_path .= '.' . pathinfo($destination, PATHINFO_EXTENSION);
-          $toolkit->setDestinationLocalPath($file_system->realpath($temp_path));
+          $arguments->setDestinationLocalPath($file_system->realpath($temp_path));
         }
       }
     }
 
     // Change image density.
-    if ($toolkit->findArgument('-density') === FALSE && $density = (int) $config->get('advanced.density')) {
-      $toolkit->addArgument("-density {$density} -units PixelsPerInch");
+    if ($arguments->findArgument('-density') === FALSE && $density = (int) $config->get('advanced.density')) {
+      $arguments->addArgument("-density {$density} -units PixelsPerInch");
     }
 
     // Apply color profile.
     if ($profile = $config->get('advanced.profile')) {
       if (file_exists($profile)) {
-        $toolkit->addArgument('-profile ' . $toolkit->escapeShellArg($profile));
+        $arguments->addArgument('-profile ' . $arguments->escapeShellArg($profile));
       }
     }
     // Or alternatively apply colorspace.
     elseif ($colorspace = $config->get('advanced.colorspace')) {
       // Do not hi-jack settings made by effects.
-      if ($toolkit->findArgument('-colorspace') === FALSE) {
-        $toolkit->addArgument('-colorspace ' . $toolkit->escapeShellArg($colorspace));
+      if ($arguments->findArgument('-colorspace') === FALSE) {
+        $arguments->addArgument('-colorspace ' . $arguments->escapeShellArg($colorspace));
       }
     }
 
     // Change image quality.
-    if ($toolkit->findArgument('-quality') === FALSE) {
-      $toolkit->addArgument('-quality ' . \Drupal::config('imagemagick.settings')->get('quality'));
+    if ($arguments->findArgument('-quality') === FALSE) {
+      $arguments->addArgument('-quality ' . \Drupal::config('imagemagick.settings')->get('quality'));
     }
   }
 }
@@ -108,13 +108,13 @@ function imagemagick_imagemagick_arguments_alter(ImagemagickToolkit $toolkit, $c
 /**
  * Implements hook_imagemagick_post_save_alter().
  */
-function imagemagick_imagemagick_post_save_alter(ImagemagickToolkit $toolkit) {
+function imagemagick_imagemagick_post_save_alter(ImagemagickExecArguments $arguments) {
   $file_system = \Drupal::service('file_system');
-  $destination = $toolkit->getDestination();
+  $destination = $arguments->getDestination();
   $path = $file_system->realpath($destination);
   if (!$path) {
     // We are working with a remote file, so move the temp file to the final
     // destination, replacing any existinf file with the same name.
-    file_unmanaged_move($toolkit->getDestinationLocalPath(), $toolkit->getDestination(), FILE_EXISTS_REPLACE);
+    file_unmanaged_move($arguments->getDestinationLocalPath(), $arguments->getDestination(), FILE_EXISTS_REPLACE);
   }
 }

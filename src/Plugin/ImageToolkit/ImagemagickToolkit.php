@@ -7,16 +7,16 @@ use Drupal\Component\Serialization\Exception\InvalidDataTypeException;
 use Drupal\Component\Serialization\Yaml;
 use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\Unicode;
-use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\ImageToolkit\ImageToolkitBase;
 use Drupal\Core\ImageToolkit\ImageToolkitOperationManagerInterface;
 use Drupal\Core\Link;
-use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Url;
 use Drupal\file_mdm\FileMetadataManagerInterface;
+use Drupal\imagemagick\ImagemagickExecArguments;
+use Drupal\imagemagick\ImagemagickExecManagerInterface;
 use Drupal\imagemagick\ImagemagickFormatMapperInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -30,13 +30,6 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * )
  */
 class ImagemagickToolkit extends ImageToolkitBase {
-
-  /**
-   * Whether we are running on Windows OS.
-   *
-   * @var bool
-   */
-  protected $isWindows;
 
   /**
    * The module handler service.
@@ -53,13 +46,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
   protected $formatMapper;
 
   /**
-   * The app root.
-   *
-   * @var string
-   */
-  protected $appRoot;
-
-  /**
    * The file metadata manager service.
    *
    * @var \Drupal\file_mdm\FileMetadataManagerInterface
@@ -67,18 +53,18 @@ class ImagemagickToolkit extends ImageToolkitBase {
   protected $fileMetadataManager;
 
   /**
-   * The current user.
+   * The ImageMagick execution manager service.
    *
-   * @var \Drupal\Core\Session\AccountProxyInterface
+   * @var \Drupal\imagemagick\ImagemagickExecManagerInterface
    */
-  protected $currentUser;
+  protected $execManager;
 
   /**
-   * The array of command line arguments to be used by 'convert'.
+   * The execution arguments object.
    *
-   * @var string[]
+   * @var \Drupal\imagemagick\ImagemagickExecArguments
    */
-  protected $arguments = array();
+  protected $arguments;
 
   /**
    * The width of the image.
@@ -95,25 +81,11 @@ class ImagemagickToolkit extends ImageToolkitBase {
   protected $height;
 
   /**
-   * The number of frames of the image, for multi-frame images (e.g. GIF).
+   * The number of frames of the source image, for multi-frame images.
    *
    * @var int
    */
   protected $frames;
-
-  /**
-   * The local filesystem path to the source image file.
-   *
-   * @var string
-   */
-  protected $sourceLocalPath = '';
-
-  /**
-   * The source image format.
-   *
-   * @var string
-   */
-  protected $sourceFormat = '';
 
   /**
    * Keeps a copy of source image EXIF information.
@@ -121,27 +93,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @var array
    */
   protected $exifInfo = [];
-
-  /**
-   * The image destination URI/path on saving.
-   *
-   * @var string
-   */
-  protected $destination = NULL;
-
-  /**
-   * The local filesystem path to the image destination.
-   *
-   * @var string
-   */
-  protected $destinationLocalPath = '';
-
-  /**
-   * The image destination format on saving.
-   *
-   * @var string
-   */
-  protected $destinationFormat = '';
 
   /**
    * Constructs an ImagemagickToolkit object.
@@ -162,21 +113,18 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   The module handler service.
    * @param \Drupal\imagemagick\ImagemagickFormatMapperInterface $format_mapper
    *   The format mapper service.
-   * @param string $app_root
-   *   The app root.
    * @param \Drupal\file_mdm\FileMetadataManagerInterface $file_metadata_manager
    *   The file metadata manager service.
-   * @param \Drupal\Core\Session\AccountProxyInterface $current_user
-   *   The current user.
+   * @param \Drupal\imagemagick\ImagemagickExecManagerInterface $exec_manager
+   *   The ImageMagick execution manager service.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ImageToolkitOperationManagerInterface $operation_manager, LoggerInterface $logger, ConfigFactoryInterface $config_factory, ModuleHandlerInterface $module_handler, ImagemagickFormatMapperInterface $format_mapper, $app_root, FileMetadataManagerInterface $file_metadata_manager, AccountProxyInterface $current_user) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, ImageToolkitOperationManagerInterface $operation_manager, LoggerInterface $logger, ConfigFactoryInterface $config_factory, ModuleHandlerInterface $module_handler, ImagemagickFormatMapperInterface $format_mapper, FileMetadataManagerInterface $file_metadata_manager, ImagemagickExecManagerInterface $exec_manager) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $operation_manager, $logger, $config_factory);
     $this->moduleHandler = $module_handler;
     $this->formatMapper = $format_mapper;
-    $this->appRoot = $app_root;
     $this->fileMetadataManager = $file_metadata_manager;
-    $this->currentUser = $current_user;
-    $this->isWindows = substr(PHP_OS, 0, 3) === 'WIN';
+    $this->execManager = $exec_manager;
+    $this->arguments = new ImagemagickExecArguments();
   }
 
   /**
@@ -192,9 +140,8 @@ class ImagemagickToolkit extends ImageToolkitBase {
       $container->get('config.factory'),
       $container->get('module_handler'),
       $container->get('imagemagick.format_mapper'),
-      $container->get('app.root'),
       $container->get('file_metadata_manager'),
-      $container->get('current_user')
+      $container->get('imagemagick.exec_manager')
     );
   }
 
@@ -257,7 +204,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#description' => $this->t('If needed, the path to the package executables (<kbd>convert</kbd>, <kbd>identify</kbd>, <kbd>gm</kbd>, etc.), <b>including</b> the trailing slash/backslash. For example: <kbd>/usr/bin/</kbd> or <kbd>C:\Program Files\ImageMagick-6.3.4-Q16\</kbd>.'),
     );
     // Version information.
-    $status = $this->checkPath($config->get('path_to_binaries'));
+    $status = $this->execManager->checkPath($config->get('path_to_binaries'));
     if (empty($status['errors'])) {
       $version_info = explode("\n", preg_replace('/\r/', '', Html::escape($status['output'])));
     }
@@ -305,7 +252,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
     if (empty($status['errors'])) {
       $command = $package === 'imagemagick' ? 'convert' : 'gm';
       $this->addArgument('-list format');
-      $this->imagemagickExec($command, $output);
+      $this->execManager->execute($command, $this->arguments, $output);
       $this->resetArguments();
       $formats_info = implode('<br />', explode("\n", preg_replace('/\r/', '', Html::escape($output))));
       $form['formats']['list'] = [
@@ -421,72 +368,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
   }
 
   /**
-   * Verifies file path of the executable binary by checking its version.
-   *
-   * @param string $path
-   *   The user-submitted file path to the convert binary.
-   * @param string $package
-   *   (optional) The graphics package to use.
-   *
-   * @return array
-   *   An associative array containing:
-   *   - output: The shell output of 'convert -version', if any.
-   *   - errors: A list of error messages indicating if the executable could
-   *     not be found or executed.
-   */
-  public function checkPath($path, $package = NULL) {
-    $status = array(
-      'output' => '',
-      'errors' => array(),
-    );
-
-    // Execute gm or convert based on settings.
-    $package = $package ?: $this->configFactory->get('imagemagick.settings')->get('binaries');
-    $suite = $package === 'imagemagick' ? $this->t('ImageMagick') : $this->t('GraphicsMagick');
-    $command = $package === 'imagemagick' ? 'convert' : 'gm';
-
-    // If a path is given, we check whether the binary exists and can be
-    // invoked.
-    if (!empty($path)) {
-      $executable = $this->getExecutable($command, $path);
-
-      // Check whether the given file exists.
-      if (!is_file($executable)) {
-        $status['errors'][] = $this->t('The @suite executable %file does not exist.', array('@suite' => $suite, '%file' => $executable));
-      }
-      // If it exists, check whether we can execute it.
-      elseif (!is_executable($executable)) {
-        $status['errors'][] = $this->t('The @suite file %file is not executable.', array('@suite' => $suite, '%file' => $executable));
-      }
-    }
-
-    // In case of errors, check for open_basedir restrictions.
-    if ($status['errors'] && ($open_basedir = ini_get('open_basedir'))) {
-      $status['errors'][] = $this->t('The PHP <a href=":php-url">open_basedir</a> security restriction is set to %open-basedir, which may prevent to locate the @suite executable.', array(
-        '@suite' => $suite,
-        '%open-basedir' => $open_basedir,
-        ':php-url' => 'http://php.net/manual/en/ini.core.php#ini.open-basedir',
-      ));
-    }
-
-    // Unless we had errors so far, try to invoke convert.
-    if (!$status['errors']) {
-      $error = NULL;
-      $this->addArgument('-version');
-      $this->imagemagickExec($command, $status['output'], $error, $path);
-      $this->resetArguments();
-      if ($error !== '') {
-        // $error normally needs check_plain(), but file system errors on
-        // Windows use a unknown encoding. check_plain() would eliminate the
-        // entire string.
-        $status['errors'][] = $error;
-      }
-    }
-
-    return $status;
-  }
-
-  /**
    * {@inheritdoc}
    */
   public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {
@@ -507,7 +388,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
     // it will prevent the entire image toolkit selection form from being
     // submitted.
     if ($form_state->getValue(['image_toolkit']) === 'imagemagick') {
-      $status = $this->checkPath($form_state->getValue(['imagemagick', 'suite', 'path_to_binaries']), $form_state->getValue(['imagemagick', 'suite', 'binaries']));
+      $status = $this->execManager->checkPath($form_state->getValue(['imagemagick', 'suite', 'path_to_binaries']), $form_state->getValue(['imagemagick', 'suite', 'binaries']));
       if ($status['errors']) {
         $form_state->setErrorByName('imagemagick][suite][path_to_binaries', new FormattableMarkup(implode('<br />', $status['errors']), []));
       }
@@ -542,13 +423,29 @@ class ImagemagickToolkit extends ImageToolkitBase {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  public function setSource($source) {
+    parent::setSource($source);
+    $this->arguments->setSource($source);
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getSource() {
+    return $this->arguments->getSource();
+  }
+
+  /**
    * Gets the local filesystem path to the image file.
    *
    * @return string
    *   A filesystem path.
    */
   public function getSourceLocalPath() {
-    return $this->sourceLocalPath;
+    return $this->arguments->getSourceLocalPath();
   }
 
   /**
@@ -560,7 +457,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @return $this
    */
   public function setSourceLocalPath($path) {
-    $this->sourceLocalPath = $path;
+    $this->arguments->setSourceLocalPath($path);
     return $this;
   }
 
@@ -571,7 +468,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   The source image format.
    */
   public function getSourceFormat() {
-    return $this->sourceFormat;
+    return $this->arguments->getSourceFormat();
   }
 
   /**
@@ -583,7 +480,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @return $this
    */
   public function setSourceFormat($format) {
-    $this->sourceFormat = $this->formatMapper->isFormatEnabled($format) ? $format : '';
+    $this->arguments->setSourceFormat($this->formatMapper->isFormatEnabled($format) ? $format : '');
     return $this;
   }
 
@@ -597,7 +494,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    */
   public function setSourceFormatFromExtension($extension) {
     $format = $this->formatMapper->getFormatFromExtension($extension);
-    $this->sourceFormat = $format ?: '';
+    $this->arguments->setSourceFormat($format ?: '');
     return $this;
   }
 
@@ -660,7 +557,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   The image destination URI/path.
    */
   public function getDestination() {
-    return $this->destination;
+    return $this->arguments->getDestination();
   }
 
   /**
@@ -672,7 +569,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @return $this
    */
   public function setDestination($destination) {
-    $this->destination = $destination;
+    $this->arguments->setDestination($destination);
     return $this;
   }
 
@@ -683,7 +580,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   A filesystem path.
    */
   public function getDestinationLocalPath() {
-    return $this->destinationLocalPath;
+    return $this->arguments->getDestinationLocalPath();
   }
 
   /**
@@ -695,7 +592,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @return $this
    */
   public function setDestinationLocalPath($path) {
-    $this->destinationLocalPath = $path;
+    $this->arguments->setDestinationLocalPath($path);
     return $this;
   }
 
@@ -710,7 +607,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   The image destination format.
    */
   public function getDestinationFormat() {
-    return $this->destinationFormat;
+    return $this->arguments->getDestinationFormat();
   }
 
   /**
@@ -726,7 +623,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @return $this
    */
   public function setDestinationFormat($format) {
-    $this->destinationFormat = $this->formatMapper->isFormatEnabled($format) ? $format : '';
+    $this->arguments->setDestinationFormat($this->formatMapper->isFormatEnabled($format) ? $format : '');
     return $this;
   }
 
@@ -744,7 +641,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    */
   public function setDestinationFormatFromExtension($extension) {
     $format = $this->formatMapper->getFormatFromExtension($extension);
-    $this->destinationFormat = $format ?: '';
+    $this->arguments->setDestinationFormat($format ?: '');
     return $this;
   }
 
@@ -802,7 +699,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   The array of command line arguments.
    */
   public function getArguments() {
-    return $this->arguments ?: array();
+    return $this->arguments->getArguments();
   }
 
   /**
@@ -814,7 +711,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @return $this
    */
   public function addArgument($arg) {
-    $this->arguments[] = $arg;
+    $this->arguments->addArgument($arg);
     return $this;
   }
 
@@ -827,7 +724,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @return $this
    */
   public function prependArgument($arg) {
-    array_unshift($this->arguments, $arg);
+    $this->arguments->prependArgument($arg);
     return $this;
   }
 
@@ -842,12 +739,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   FALSE otherwise.
    */
   public function findArgument($arg) {
-    foreach ($this->getArguments() as $i => $a) {
-      if (strpos($a, $arg) === 0) {
-        return $i;
-      }
-    }
-    return FALSE;
+    return $this->arguments->findArgument($arg);
   }
 
   /**
@@ -859,9 +751,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @return $this
    */
   public function removeArgument($index) {
-    if (isset($this->arguments[$index])) {
-      unset($this->arguments[$index]);
-    }
+    $this->arguments->removeArgument($index);
     return $this;
   }
 
@@ -871,7 +761,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @return $this
    */
   public function resetArguments() {
-    $this->arguments = array();
+    $this->arguments->resetArguments();
     return $this;
   }
 
@@ -881,72 +771,21 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @return $this
    */
   public function countArguments() {
-    return count($this->arguments);
+    return $this->arguments->countArguments();
   }
 
   /**
    * Escapes a string.
    *
-   * PHP escapeshellarg() drops non-ascii characters, this is a replacement.
-   *
-   * Stop-gap replacement until core issue #1561214 has been solved. Solution
-   * proposed in #1502924-8.
-   *
-   * PHP escapeshellarg() on Windows also drops % (percentage sign) characters.
-   * We prevent this by replacing it with a pattern that should be highly
-   * unlikely to appear in the string itself and does not contain any
-   * "dangerous" character at all (very wide definition of dangerous). After
-   * escaping we replace that pattern back with a % character.
-   *
    * @param string $arg
    *   The string to escape.
    *
    * @return string
-   *   An escaped string for use in the ::imagemagickExec method.
+   *   An escaped string for use in the
+   *   ImagemagickExecManagerInterface::execute method.
    */
   public function escapeShellArg($arg) {
-    static $percentage_sign_replace_pattern = '1357902468IMAGEMAGICKPERCENTSIGNPATTERN8642097531';
-
-    // Put the configured locale in a static to avoid multiple config get calls
-    // in the same request.
-    static $config_locale;
-
-    if (!isset($config_locale)) {
-      $config_locale = $this->configFactory->get('imagemagick.settings')->get('locale');
-      if (empty($config_locale)) {
-        $config_locale = FALSE;
-      }
-    }
-
-    if ($this->isWindows) {
-      // Temporarily replace % characters.
-      $arg = str_replace('%', $percentage_sign_replace_pattern, $arg);
-    }
-
-    // If no locale specified in config, return with standard.
-    if ($config_locale === FALSE) {
-      $arg_escaped = escapeshellarg($arg);
-    }
-    else {
-      // Get the current locale.
-      $current_locale = setlocale(LC_CTYPE, 0);
-      if ($current_locale != $config_locale) {
-        // Temporarily swap the current locale with the configured one.
-        setlocale(LC_CTYPE, $config_locale);
-        $arg_escaped = escapeshellarg($arg);
-        setlocale(LC_CTYPE, $current_locale);
-      }
-      else {
-        $arg_escaped = escapeshellarg($arg);
-      }
-    }
-
-    // Get our % characters back.
-    if ($this->isWindows) {
-      $arg_escaped = str_replace($percentage_sign_replace_pattern, '%', $arg_escaped);
-    }
-
-    return $arg_escaped;
+    return $this->execManager->escapeShellArg($arg);
   }
 
   /**
@@ -956,7 +795,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
     $this->setDestination($destination);
     if ($ret = $this->convert()) {
       // Allow modules to alter the destination file.
-      $this->moduleHandler->alter('imagemagick_post_save', $this);
+      $this->moduleHandler->alter('imagemagick_post_save', $this->arguments);
       // Reset local path to allow saving to other file.
       $this->setDestinationLocalPath('');
     }
@@ -1023,7 +862,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    */
   protected function parseFileViaGetImageSize() {
     // Allow modules to alter the source file.
-    $this->moduleHandler->alter('imagemagick_pre_parse_file', $this);
+    $this->moduleHandler->alter('imagemagick_pre_parse_file', $this->arguments);
 
     // Get 'getimagesize' metadata for this image.
     $file_md = $this->fileMetadataManager->uri($this->getSource());
@@ -1083,56 +922,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
   }
 
   /**
-   * Calls the identify executable on the specified file.
-   *
-   * Note that this method is called by the FileMetadata plugin
-   * 'imagemagick_identify', *not* by the toolkit directly.
-   *
-   * @return array
-   *   The array with identify metadata, if the file was parsed correctly.
-   *   NULL otherwise.
-   */
-  public function identify() {
-    // Add -format argument.
-    $this->addArgument('-format ' . $this->escapeShellArg("format:%[magick]|width:%[width]|height:%[height]|exif_orientation:%[EXIF:Orientation]\\n"));
-
-    // Allow modules to alter source file and the command line parameters.
-    $command = 'identify';
-    $this->moduleHandler->alter('imagemagick_pre_parse_file', $this);
-    $this->moduleHandler->alter('imagemagick_arguments', $this, $command);
-
-    // Execute the 'identify' command.
-    $output = NULL;
-    $ret = $this->imagemagickExec($command, $output);
-    $this->resetArguments();
-
-    // Process results.
-    $data = [];
-    if ($ret) {
-      // Builds the frames info.
-      $frames = [];
-      $frames_tmp = explode("\n", $output);
-      // Remove empty items at the end of the array.
-      while (empty($frames_tmp[count($frames_tmp) - 1])) {
-        array_pop($frames_tmp);
-      }
-      foreach ($frames_tmp as $i => $frame) {
-        $info = explode('|', $frame);
-        foreach ($info as $item) {
-          list($key, $value) = explode(':', $item);
-          $frames[$i][trim($key)] = trim($value);
-        }
-      }
-      $data['frames'] = $frames;
-      // Adds the local file path that was resolved via
-      // hook_imagemagick_pre_parse_file implementations.
-      $data['source_local_path'] = $this->getSourceLocalPath();
-    }
-
-    return ($ret === TRUE) ? $data : NULL;
-  }
-
-  /**
    * Calls the convert executable with the specified arguments.
    *
    * @return bool
@@ -1146,12 +935,12 @@ class ImagemagickToolkit extends ImageToolkitBase {
     // available, but the temp file path is not resolved, or even the temp file
     // could be missing if it was copied locally from a remote file system.
     if (!$this->getSourceLocalPath()) {
-      $this->moduleHandler->alter('imagemagick_pre_parse_file', $this);
+      $this->moduleHandler->alter('imagemagick_pre_parse_file', $this->arguments);
     }
 
     // Allow modules to alter the command line parameters.
     $command = $config->get('binaries') === 'imagemagick' ? 'convert' : 'gm';
-    $this->moduleHandler->alter('imagemagick_arguments', $this, $command);
+    $this->moduleHandler->alter('imagemagick_arguments', $this->arguments, $command);
 
     // Delete any cached file metadata for the image file, before creating
     // a new one, and release the URI from the manager so that metadata will
@@ -1159,8 +948,15 @@ class ImagemagickToolkit extends ImageToolkitBase {
     $this->fileMetadataManager->deleteCachedMetadata($this->getDestination());
     $this->fileMetadataManager->release($this->getDestination());
 
+    // When destination format differs from source format, and source image
+    // is multi-frame, convert only the first frame.
+    $destination_format = $this->getDestinationFormat() ?: $this->getSourceFormat();
+    if ($this->getSourceFormat() !== $destination_format && ($this->getFrames() === NULL || $this->getFrames() > 1)) {
+      $this->arguments->setSourceFrames('[0]');
+    }
+
     // Execute the 'convert' or 'gm' command.
-    $success = $this->imagemagickExec($command) && file_exists($this->getDestinationLocalPath());
+    $success = $this->execManager->execute($command, $this->arguments) && file_exists($this->getDestinationLocalPath());
 
     // If successful, parsing was done via identify, and single frame image,
     // we can safely build a new FileMetadata entry and assign data to it.
@@ -1184,165 +980,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
   }
 
   /**
-   * Executes the convert executable as shell command.
-   *
-   * @param string $command
-   *   The executable to run.
-   * @param string &$output
-   *   (optional) A variable to assign the shell stdout to, passed by
-   *   reference.
-   * @param string &$error
-   *   (optional) A variable to assign the shell stderr to, passed by
-   *   reference.
-   * @param string $path
-   *   (optional) A custom file path to the executable binary.
-   *
-   * @return bool
-   *   TRUE if the command succeeded, FALSE otherwise. The error exit status
-   *   code integer returned by the executable is logged.
-   */
-  protected function imagemagickExec($command, &$output = NULL, &$error = NULL, $path = NULL) {
-    $suite = $this->configFactory->get('imagemagick.settings')->get('binaries') === 'imagemagick' ? 'ImageMagick' : 'GraphicsMagick';
-
-    $cmd = $this->getExecutable($command, $path);
-    if ($this->isWindows) {
-      // Use Window's start command with the /B flag to make the process run in
-      // the background and avoid a shell command line window from showing up.
-      // @see http://us3.php.net/manual/en/function.exec.php#56599
-      // Use /D to run the command from PHP's current working directory so the
-      // file paths don't have to be absolute.
-      $cmd = 'start "' . $suite . '" /D ' . $this->escapeShellArg($this->appRoot) . ' /B ' . $this->escapeShellArg($cmd);
-    }
-
-    if ($source_path = $this->getSourceLocalPath()) {
-      // When destination format differs from source format, and source image
-      // is multi-frame, convert only the first frame.
-      $destination_format = $this->getDestinationFormat() ?: $this->getSourceFormat();
-      if ($this->getSourceFormat() !== $destination_format && ($this->getFrames() === NULL || $this->getFrames() > 1)) {
-        $source_path .= '[0]';
-      }
-      $source_path = $this->escapeShellArg($source_path);
-    }
-
-    if ($destination_path = $this->getDestinationLocalPath()) {
-      $destination_path = $this->escapeShellArg($destination_path);
-      // If the format of the derivative image has to be changed, concatenate
-      // the new image format and the destination path, delimited by a colon.
-      // @see http://www.imagemagick.org/script/command-line-processing.php#output
-      if (($format = $this->getDestinationFormat()) !== '') {
-        $destination_path = $format . ':' . $destination_path;
-      }
-    }
-
-    switch($command) {
-      case 'identify':
-        $cmdline = $cmd . ' ' . implode(' ', $this->getArguments()) . ' ' . $source_path;
-        break;
-
-      case 'convert':
-        // ImageMagick arguments:
-        // convert input [arguments] output
-        // @see http://www.imagemagick.org/Usage/basics/#cmdline
-        $cmdline = $cmd . ' ' . $source_path . ' ' . implode(' ', $this->getArguments()) . ' ' . $destination_path;
-        break;
-
-      case 'gm':
-        // GraphicsMagick arguments:
-        // gm convert [arguments] input output
-        // @see http://www.graphicsmagick.org/GraphicsMagick.html
-        $cmdline = $cmd . ' convert ' . implode(' ', $this->getArguments()) . ' '  . $source_path . ' ' . $destination_path;
-        break;
-
-    }
-
-    $descriptors = array(
-      // stdin
-      0 => array('pipe', 'r'),
-      // stdout
-      1 => array('pipe', 'w'),
-      // stderr
-      2 => array('pipe', 'w'),
-    );
-    if ($h = proc_open($cmdline, $descriptors, $pipes, $this->appRoot)) {
-      $output = '';
-      while (!feof($pipes[1])) {
-        $output .= fgets($pipes[1]);
-      }
-      $error = '';
-      while (!feof($pipes[2])) {
-        $error .= fgets($pipes[2]);
-      }
-
-      fclose($pipes[0]);
-      fclose($pipes[1]);
-      fclose($pipes[2]);
-      $return_code = proc_close($h);
-
-      // Display debugging information to authorized users.
-      if ($this->configFactory->get('imagemagick.settings')->get('debug')) {
-        if ($this->currentUser->hasPermission('administer site configuration')) {
-          debug($cmdline, $this->t('@suite command', ['@suite' => $suite]), TRUE);
-          if ($output !== '') {
-            debug($output, $this->t('@suite output', ['@suite' => $suite]), TRUE);
-          }
-          if ($error !== '') {
-            debug($error, $this->t('@suite error @return_code', ['@suite' => $suite, '@return_code' => $return_code]), TRUE);
-          }
-        }
-      }
-
-      // If the executable returned a non-zero code, log to the watchdog.
-      if ($return_code != 0) {
-        // If there is no error message, clarify this.
-        if ($error === '') {
-          $error = $this->t('No error message.');
-        }
-        // Format $error with as full message, passed by reference.
-        $error = $this->t('@suite error @code: @error', array(
-          '@suite' => $suite,
-          '@code' => $return_code,
-          '@error' => $error,
-        ));
-        $this->logger->error($error);
-        // Executable exited with an error code, return FALSE.
-        return FALSE;
-      }
-
-      // The shell command was executed successfully.
-      return TRUE;
-    }
-    // The shell command could not be executed.
-    return FALSE;
-  }
-
-  /**
-   * Returns the full path to the executable.
-   *
-   * @param string $command
-   *   The program to execute, typically 'convert', 'identify' or 'gm'.
-   * @param string $path
-   *   (optional) A custom path to the folder of the executable. When left
-   *   empty, the setting imagemagick.settings.path_to_binaries is taken.
-   *
-   * @return string
-   *   The full path to the executable.
-   */
-  public function getExecutable($command, $path = NULL) {
-    // $path is only passed from the validation of the image toolkit form, on
-    // which the path to convert is configured. @see ::checkPath()
-    if (!isset($path)) {
-      $path = $this->configFactory->get('imagemagick.settings')->get('path_to_binaries');
-    }
-
-    $executable = $command;
-    if ($this->isWindows) {
-      $executable .= '.exe';
-    }
-
-    return $path . $executable;
-  }
-
-  /**
    * {@inheritdoc}
    */
   public function getRequirements() {
@@ -1356,7 +993,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
       ]);
     }
     else {
-      $status = $this->checkPath($this->configFactory->get('imagemagick.settings')->get('path_to_binaries'));
+      $status = $this->execManager->checkPath($this->configFactory->get('imagemagick.settings')->get('path_to_binaries'));
       if (!empty($status['errors'])) {
         // Can not execute 'convert'.
         $severity = REQUIREMENT_ERROR;

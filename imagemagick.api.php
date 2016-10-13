@@ -18,15 +18,15 @@
  * Modules can also decide to move files from remote systems to the local
  * file system to allow processing.
  *
- * @param \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit $toolkit
- *   The Imagemagick toolkit instance to alter.
+ * @param \Drupal\imagemagick\ImagemagickExecArguments $arguments
+ *   The ImageMagick execution arguments object.
  *
  * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::parseFile()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::getSource()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::setSourceLocalPath()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::getSourceLocalPath()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::getSource()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::setSourceLocalPath()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::getSourceLocalPath()
  */
-function hook_imagemagick_pre_parse_file_alter(\Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit $toolkit) {
+function hook_imagemagick_pre_parse_file_alter(\Drupal\imagemagick\ImagemagickExecArguments $arguments) {
 }
 
 /**
@@ -36,14 +36,14 @@ function hook_imagemagick_pre_parse_file_alter(\Drupal\imagemagick\Plugin\ImageT
  * to move temporary files from the local file system to remote destination
  * systems.
  *
- * @param \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit $toolkit
- *   The Imagemagick toolkit instance to alter.
+ * @param \Drupal\imagemagick\ImagemagickExecArguments $arguments
+ *   The ImageMagick execution arguments object.
  *
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::getDestination()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::getDestinationLocalPath()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::getDestination()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::getDestinationLocalPath()
  * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::save()
  */
-function hook_imagemagick_post_save_alter(\Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit $toolkit) {
+function hook_imagemagick_post_save_alter(\Drupal\imagemagick\ImagemagickExecArguments $arguments) {
 }
 
 /**
@@ -63,27 +63,27 @@ function hook_imagemagick_post_save_alter(\Drupal\imagemagick\Plugin\ImageToolki
  * When the destination format is set, it is passed to ImageMagick's convert
  * binary with the syntax "[format]:[destination]".
  *
- * @param \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit $toolkit
- *   The Imagemagick toolkit instance to alter.
+ * @param \Drupal\imagemagick\ImagemagickExecArguments $arguments
+ *   The ImageMagick execution arguments object.
  * @param string $command
- *   The Imagemagick binary being called.
+ *   The ImageMagick binary being called.
  *
  * @see http://www.imagemagick.org/script/command-line-processing.php#output
  * @see http://www.imagemagick.org/Usage/files/#save
  *
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::getArguments()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::prependArgument()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::addArgument()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::findArgument()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::resetArguments()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::getSource()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::setSourceLocalPath()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::getSourceLocalPath()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::getDestination()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::setDestinationLocalPath()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::getDestinationLocalPath()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::getArguments()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::prependArgument()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::addArgument()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::findArgument()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::resetArguments()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::getSource()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::setSourceLocalPath()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::getSourceLocalPath()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::getDestination()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::setDestinationLocalPath()
+ * @see \Drupal\imagemagick\ImagemagickExecArguments::getDestinationLocalPath()
  * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::convert()
- * @see \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit::identify()
+ * @see \Drupal\imagemagick\Plugin\FileMetadata\ImagemagickIdentify::identify()
  */
-function hook_imagemagick_arguments_alter(\Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit $toolkit, $command) {
+function hook_imagemagick_arguments_alter(\Drupal\imagemagick\ImagemagickExecArguments $arguments, $command) {
 }
