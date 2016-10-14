@@ -214,7 +214,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
           // Should not be available at this stage.
           $this->assertIdentical(FileMetadataInterface::NOT_LOADED, $saved_image_md->isMetadataLoaded($parsing_method));
           // Get metadata from file.
-          $metadata = $saved_image_md->getMetadata($parsing_method);
+          $saved_image_md->getMetadata($parsing_method);
           $this->assertIdentical(FileMetadataInterface::LOADED_FROM_FILE, $saved_image_md->isMetadataLoaded($parsing_method));
           switch ($parsing_method) {
             case 'imagemagick_identify':
@@ -302,7 +302,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
           // Should not be available at this stage.
           $this->assertIdentical(FileMetadataInterface::NOT_LOADED, $saved_image_md->isMetadataLoaded($parsing_method));
           // Get metadata from cache.
-          $metadata = $saved_image_md->getMetadata($parsing_method);
+          $saved_image_md->getMetadata($parsing_method);
           $this->assertIdentical(FileMetadataInterface::LOADED_FROM_CACHE, $saved_image_md->isMetadataLoaded($parsing_method));
           switch ($parsing_method) {
             case 'imagemagick_identify':
@@ -390,7 +390,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
           // Should not be available at this stage.
           $this->assertIdentical(FileMetadataInterface::NOT_LOADED, $saved_image_md->isMetadataLoaded($parsing_method));
           // Get metadata from cache.
-          $metadata = $saved_image_md->getMetadata($parsing_method);
+          $saved_image_md->getMetadata($parsing_method);
           $this->assertIdentical(FileMetadataInterface::LOADED_FROM_CACHE, $saved_image_md->isMetadataLoaded($parsing_method));
           switch ($parsing_method) {
             case 'imagemagick_identify':
@@ -502,7 +502,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
           // Should not be available at this stage.
           $this->assertIdentical(FileMetadataInterface::NOT_LOADED, $saved_image_md->isMetadataLoaded($parsing_method));
           // Get metadata from file.
-          $metadata = $saved_image_md->getMetadata($parsing_method);
+          $saved_image_md->getMetadata($parsing_method);
           $this->assertIdentical(FileMetadataInterface::LOADED_FROM_FILE, $saved_image_md->isMetadataLoaded($parsing_method));
           switch ($parsing_method) {
             case 'imagemagick_identify':

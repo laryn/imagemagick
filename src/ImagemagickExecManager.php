@@ -160,15 +160,15 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
         break;
 
       case 'convert':
-        // ImageMagick arguments:
-        // convert input [arguments] output
+        // ImageMagick arguments.
+        // Command line format: "convert input [arguments] output".
         // @see http://www.imagemagick.org/Usage/basics/#cmdline
         $cmdline = $cmd . ' ' . $source_path . ' ' . implode(' ', $arguments->getArguments()) . ' ' . $destination_path;
         break;
 
       case 'gm':
-        // GraphicsMagick arguments:
-        // gm convert [arguments] input output
+        // GraphicsMagick arguments.
+        // Command line format: "gm convert [arguments] input output".
         // @see http://www.graphicsmagick.org/GraphicsMagick.html
         $cmdline = $cmd . ' convert ' . implode(' ', $arguments->getArguments()) . ' ' . $source_path . ' ' . $destination_path;
         break;
@@ -178,7 +178,7 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
     $descriptors = array(
       // This is stdin.
       0 => array('pipe', 'r'),
-      // This is stdout,
+      // This is stdout.
       1 => array('pipe', 'w'),
       // This is stderr.
       2 => array('pipe', 'w'),
