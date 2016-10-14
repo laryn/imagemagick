@@ -88,7 +88,14 @@ class ImagemagickIdentify extends FileMetadataPluginBase {
    *   'frames_count' - Number of frames in the image.
    */
   public function getSupportedKeys($options = NULL) {
-    return ['format', 'width', 'height', 'exif_orientation', 'source_local_path', 'frames_count'];
+    return [
+      'format',
+      'width',
+      'height',
+      'exif_orientation',
+      'source_local_path',
+      'frames_count',
+    ];
   }
 
   /**

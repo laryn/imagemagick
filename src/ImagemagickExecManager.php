@@ -38,7 +38,7 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
   /**
    * The logger service.
    *
-   * @var \Psr\Log\LoggerInterface.
+   * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
 
@@ -154,7 +154,7 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
       }
     }
 
-    switch($command) {
+    switch ($command) {
       case 'identify':
         $cmdline = $cmd . ' ' . implode(' ', $arguments->getArguments()) . ' ' . $source_path;
         break;
@@ -170,17 +170,17 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
         // GraphicsMagick arguments:
         // gm convert [arguments] input output
         // @see http://www.graphicsmagick.org/GraphicsMagick.html
-        $cmdline = $cmd . ' convert ' . implode(' ', $arguments->getArguments()) . ' '  . $source_path . ' ' . $destination_path;
+        $cmdline = $cmd . ' convert ' . implode(' ', $arguments->getArguments()) . ' ' . $source_path . ' ' . $destination_path;
         break;
 
     }
 
     $descriptors = array(
-      // stdin
+      // This is stdin.
       0 => array('pipe', 'r'),
-      // stdout
+      // This is stdout,
       1 => array('pipe', 'w'),
-      // stderr
+      // This is stderr.
       2 => array('pipe', 'w'),
     );
     if ($h = proc_open($cmdline, $descriptors, $pipes, $this->appRoot)) {

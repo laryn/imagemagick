@@ -4,7 +4,6 @@ namespace Drupal\imagemagick;
 
 /**
  * Provides an interface for ImageMagick execution managers.
- * )
  */
 interface ImagemagickExecManagerInterface {
 
@@ -29,7 +28,7 @@ interface ImagemagickExecManagerInterface {
    *
    * @param string $command
    *   The executable to run.
-   * @param \Drupal\imagemagick\ImagemagickExecArgments $arguments
+   * @param \Drupal\imagemagick\ImagemagickExecArguments $arguments
    *   An ImageMagick execution arguments object.
    * @param string &$output
    *   (optional) A variable to assign the shell stdout to, passed by

@@ -230,7 +230,7 @@ class ImagemagickExecArguments {
    *
    * @return $this
    *
-   * @see http://www.imagemagick.org/script/command-line-processing.php 'Selecting frames'
+   * @see http://www.imagemagick.org/script/command-line-processing.php
    */
   public function setSourceFrames($frames) {
     $this->sourceFrames = $frames;
@@ -243,7 +243,7 @@ class ImagemagickExecArguments {
    * @return string
    *   The frames in '[n]' string format.
    *
-   * @see http://www.imagemagick.org/script/command-line-processing.php 'Selecting frames'
+   * @see http://www.imagemagick.org/script/command-line-processing.php
    */
   public function getSourceFrames() {
     return $this->sourceFrames;

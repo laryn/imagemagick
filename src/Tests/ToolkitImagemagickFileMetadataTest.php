@@ -3,7 +3,6 @@
 namespace Drupal\imagemagick\Tests;
 
 use Drupal\Core\Cache\Cache;
-use Drupal\Core\Image\ImageInterface;
 use Drupal\file_mdm\FileMetadataInterface;
 use Drupal\simpletest\WebTestBase;
 
@@ -33,7 +32,13 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
    *
    * @var array
    */
-  protected static $modules = ['system', 'simpletest', 'file_test', 'imagemagick', 'file_mdm'];
+  protected static $modules = [
+    'system',
+    'simpletest',
+    'file_test',
+    'imagemagick',
+    'file_mdm',
+  ];
 
   /**
    * {@inheritdoc}
@@ -80,7 +85,6 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
     $this->imageFactory->setToolkitId('imagemagick');
     $config->set('debug', TRUE)->save();
 
-
     // A list of files that will be tested.
     $files = array(
       'public://image-test.png' => array(
@@ -122,9 +126,10 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
         'width' => 20,
         'height' => 10,
       ),
+      // Fuchsia background.
       'rotate_5' => array(
         'function' => 'rotate',
-        'arguments' => array('degrees' => 5, 'background' => '#FF00FF'), // Fuchsia background.
+        'arguments' => array('degrees' => 5, 'background' => '#FF00FF'),
         'width' => 41,
         'height' => 23,
       ),
@@ -219,7 +224,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
               }
               break;
 
-              case 'getimagesize':
+            case 'getimagesize':
               if (!isset($source_image_data['skip_dimensions_check'])) {
                 $this->assertEqual($values['height'], $saved_image_md->getMetadata($parsing_method, 1));
                 $this->assertEqual($values['width'], $saved_image_md->getMetadata($parsing_method, 0));
@@ -307,7 +312,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
               }
               break;
 
-              case 'getimagesize':
+            case 'getimagesize':
               if (!isset($source_image_data['skip_dimensions_check'])) {
                 $this->assertEqual($values['height'], $saved_image_md->getMetadata($parsing_method, 1));
                 $this->assertEqual($values['width'], $saved_image_md->getMetadata($parsing_method, 0));
@@ -395,7 +400,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
               }
               break;
 
-              case 'getimagesize':
+            case 'getimagesize':
               if (!isset($source_image_data['skip_dimensions_check'])) {
                 $this->assertEqual($values['height'], $saved_image_md->getMetadata($parsing_method, 1));
                 $this->assertEqual($values['width'], $saved_image_md->getMetadata($parsing_method, 0));
@@ -428,7 +433,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
     // parsed again.
     Cache::InvalidateTags([
       'config:imagemagick.file_metadata_plugin.imagemagick_identify',
-      'config:file_mdm.file_metadata_plugin.getimagesize'
+      'config:file_mdm.file_metadata_plugin.getimagesize',
     ]);
     // Disallow caching on the test results directory.
     $config_mdm->set('metadata_cache.disallowed_paths', ['public://imagetest/*'])->save();
@@ -507,7 +512,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
               }
               break;
 
-              case 'getimagesize':
+            case 'getimagesize':
               if (!isset($source_image_data['skip_dimensions_check'])) {
                 $this->assertEqual($values['height'], $saved_image_md->getMetadata($parsing_method, 1));
                 $this->assertEqual($values['width'], $saved_image_md->getMetadata($parsing_method, 0));
