@@ -72,6 +72,33 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
   /**
    * {@inheritdoc}
    */
+  public function getPackage($package = NULL) {
+    if ($package === NULL) {
+      $package = $this->configFactory->get('imagemagick.settings')->get('binaries');
+    }
+    return $package;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getPackageLabel($package = NULL) {
+    switch ($this->getPackage($package)) {
+      case 'imagemagick':
+        return $this->t('ImageMagick');
+
+      case 'graphicsmagick':
+        return $this->t('GraphicsMagick');
+
+      default:
+        return $package;
+
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function checkPath($path, $package = NULL) {
     $status = array(
       'output' => '',
@@ -79,9 +106,7 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
     );
 
     // Execute gm or convert based on settings.
-    $package = $package ?: $this->configFactory->get('imagemagick.settings')->get('binaries');
-    $suite = $package === 'imagemagick' ? $this->t('ImageMagick') : $this->t('GraphicsMagick');
-    $command = $package === 'imagemagick' ? 'convert' : 'gm';
+    $command = $this->getPackage($package) === 'imagemagick' ? 'convert' : 'gm';
 
     // If a path is given, we check whether the binary exists and can be
     // invoked.
@@ -90,18 +115,18 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
 
       // Check whether the given file exists.
       if (!is_file($executable)) {
-        $status['errors'][] = $this->t('The @suite executable %file does not exist.', array('@suite' => $suite, '%file' => $executable));
+        $status['errors'][] = $this->t('The @suite executable %file does not exist.', array('@suite' => $this->getPackageLabel($package), '%file' => $executable));
       }
       // If it exists, check whether we can execute it.
       elseif (!is_executable($executable)) {
-        $status['errors'][] = $this->t('The @suite file %file is not executable.', array('@suite' => $suite, '%file' => $executable));
+        $status['errors'][] = $this->t('The @suite file %file is not executable.', array('@suite' => $this->getPackageLabel($package), '%file' => $executable));
       }
     }
 
     // In case of errors, check for open_basedir restrictions.
     if ($status['errors'] && ($open_basedir = ini_get('open_basedir'))) {
       $status['errors'][] = $this->t('The PHP <a href=":php-url">open_basedir</a> security restriction is set to %open-basedir, which may prevent to locate the @suite executable.', array(
-        '@suite' => $suite,
+        '@suite' => $this->getPackageLabel($package),
         '%open-basedir' => $open_basedir,
         ':php-url' => 'http://php.net/manual/en/ini.core.php#ini.open-basedir',
       ));
@@ -125,17 +150,7 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
    * {@inheritdoc}
    */
   public function execute($command, ImagemagickExecArguments $arguments, &$output = NULL, &$error = NULL, $path = NULL) {
-    $suite = $this->configFactory->get('imagemagick.settings')->get('binaries') === 'imagemagick' ? 'ImageMagick' : 'GraphicsMagick';
-
     $cmd = $this->getExecutable($command, $path);
-    if ($this->isWindows) {
-      // Use Window's start command with the /B flag to make the process run in
-      // the background and avoid a shell command line window from showing up.
-      // @see http://us3.php.net/manual/en/function.exec.php#56599
-      // Use /D to run the command from PHP's current working directory so the
-      // file paths don't have to be absolute.
-      $cmd = 'start "' . $suite . '" /D ' . $this->escapeShellArg($this->appRoot) . ' /B ' . $this->escapeShellArg($cmd);
-    }
 
     if ($source_path = $arguments->getSourceLocalPath()) {
       if (($source_frames = $arguments->getSourceFrames()) !== NULL) {
@@ -156,70 +171,41 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
 
     switch ($command) {
       case 'identify':
-        $cmdline = $cmd . ' ' . implode(' ', $arguments->getArguments()) . ' ' . $source_path;
+        $cmdline = implode(' ', $arguments->getArguments()) . ' ' . $source_path;
         break;
 
       case 'convert':
         // ImageMagick arguments.
         // Command line format: "convert input [arguments] output".
         // @see http://www.imagemagick.org/Usage/basics/#cmdline
-        $cmdline = $cmd . ' ' . $source_path . ' ' . implode(' ', $arguments->getArguments()) . ' ' . $destination_path;
+        $cmdline = '';
+        if ($source_path) {
+          $cmdline .= $source_path . ' ';
+        }
+        $cmdline .= implode(' ', $arguments->getArguments()) . ' ' . $destination_path;
         break;
 
       case 'gm':
         // GraphicsMagick arguments.
         // Command line format: "gm convert [arguments] input output".
         // @see http://www.graphicsmagick.org/GraphicsMagick.html
-        $cmdline = $cmd . ' convert ' . implode(' ', $arguments->getArguments()) . ' ' . $source_path . ' ' . $destination_path;
+        $cmdline = 'convert ' . implode(' ', $arguments->getArguments()) . ' ' . $source_path . ' ' . $destination_path;
         break;
 
     }
 
-    $descriptors = array(
-      // This is stdin.
-      0 => array('pipe', 'r'),
-      // This is stdout.
-      1 => array('pipe', 'w'),
-      // This is stderr.
-      2 => array('pipe', 'w'),
-    );
-    if ($h = proc_open($cmdline, $descriptors, $pipes, $this->appRoot)) {
-      $output = '';
-      while (!feof($pipes[1])) {
-        $output .= fgets($pipes[1]);
-      }
-      $error = '';
-      while (!feof($pipes[2])) {
-        $error .= fgets($pipes[2]);
-      }
+    $return_code = $this->runOsShell($cmd, $cmdline, $this->getPackage(), $output, $error);
 
-      fclose($pipes[0]);
-      fclose($pipes[1]);
-      fclose($pipes[2]);
-      $return_code = proc_close($h);
-
-      // Display debugging information to authorized users.
-      if ($this->configFactory->get('imagemagick.settings')->get('debug')) {
-        if ($this->currentUser->hasPermission('administer site configuration')) {
-          debug($cmdline, $this->t('@suite command', ['@suite' => $suite]), TRUE);
-          if ($output !== '') {
-            debug($output, $this->t('@suite output', ['@suite' => $suite]), TRUE);
-          }
-          if ($error !== '') {
-            debug($error, $this->t('@suite error @return_code', ['@suite' => $suite, '@return_code' => $return_code]), TRUE);
-          }
-        }
-      }
-
+    if ($return_code !== FALSE) {
       // If the executable returned a non-zero code, log to the watchdog.
       if ($return_code != 0) {
         // If there is no error message, clarify this.
         if ($error === '') {
           $error = $this->t('No error message.');
         }
-        // Format $error with as full message, passed by reference.
+        // Format $error.
         $error = $this->t('@suite error @code: @error', array(
-          '@suite' => $suite,
+          '@suite' => $this->getPackageLabel(),
           '@code' => $return_code,
           '@error' => $error,
         ));
@@ -233,6 +219,79 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
     }
     // The shell command could not be executed.
     return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function runOsShell($command, $arguments, $id, &$output = NULL, &$error = NULL) {
+    if ($this->isWindows) {
+      // Use Window's start command with the /B flag to make the process run in
+      // the background and avoid a shell command line window from showing up.
+      // @see http://us3.php.net/manual/en/function.exec.php#56599
+      // Use /D to run the command from PHP's current working directory so the
+      // file paths don't have to be absolute.
+      $command = 'start "' . $id . '" /D ' . $this->escapeShellArg($this->appRoot) . ' /B ' . $this->escapeShellArg($command);
+    }
+    $command_line = $command . ' ' . $arguments;
+
+    // Executes the command on the OS via proc_open().
+    $descriptors = [
+      // This is stdin.
+      0 => ['pipe', 'r'],
+      // This is stdout.
+      1 => ['pipe', 'w'],
+      // This is stderr.
+      2 => ['pipe', 'w'],
+    ];
+
+    if ($h = proc_open($command_line, $descriptors, $pipes, $this->appRoot)) {
+      $output = '';
+      while (!feof($pipes[1])) {
+        $output .= fgets($pipes[1]);
+      }
+      $error = '';
+      while (!feof($pipes[2])) {
+        $error .= fgets($pipes[2]);
+      }
+      fclose($pipes[0]);
+      fclose($pipes[1]);
+      fclose($pipes[2]);
+      $return_code = proc_close($h);
+    }
+    else {
+      $return_code = FALSE;
+    }
+
+    // Display debugging information to authorized users.
+    if ($this->configFactory->get('imagemagick.settings')->get('debug') && $this->currentUser->hasPermission('administer site configuration')) {
+      debug($command_line, $this->t('@suite command', ['@suite' => $this->getPackageLabel($id)]), TRUE);
+      if ($output !== '') {
+        debug($output, $this->t('@suite output', ['@suite' => $this->getPackageLabel($id)]), TRUE);
+      }
+      if ($error !== '') {
+        debug($error, $this->t('@suite error @return_code', ['@suite' => $this->getPackageLabel($id), '@return_code' => $return_code]), TRUE);
+      }
+    }
+
+    return $return_code;
+  }
+
+  /**
+   * Gets the list of locales installed on the server.
+   *
+   * @return string
+   *   The string resulting from the execution of 'locale -a' in *nix systems.
+   */
+  public function getInstalledLocales() {
+    $output = '';
+    if ($this->isWindows === FALSE) {
+      $this->runOsShell('locale', '-a', 'locale', $output);
+    }
+    else {
+      $output = (string) $this->t("List not available on Windows servers.");
+    }
+    return $output;
   }
 
   /**

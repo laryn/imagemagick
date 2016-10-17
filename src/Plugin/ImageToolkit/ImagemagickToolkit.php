@@ -150,8 +150,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
     $config = $this->configFactory->getEditable('imagemagick.settings');
-    $package = $this->configFactory->get('imagemagick.settings')->get('binaries');
-    $suite = $package === 'imagemagick' ? $this->t('ImageMagick') : $this->t('GraphicsMagick');
 
     $form['imagemagick'] = array(
       '#markup' => $this->t("<a href=':im-url'>ImageMagick</a> and <a href=':gm-url'>GraphicsMagick</a> are stand-alone packages for image manipulation. At least one of them must be installed on the server, and you need to know where it is located. Consult your server administrator or hosting provider for details.", [
@@ -184,8 +182,8 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#group' => 'imagemagick_settings',
     );
     $options = [
-      'imagemagick' => $this->t("ImageMagick"),
-      'graphicsmagick' => $this->t("GraphicsMagick"),
+      'imagemagick' => $this->execManager->getPackageLabel('imagemagick'),
+      'graphicsmagick' => $this->execManager->getPackageLabel('graphicsmagick'),
     ];
     $form['suite']['binaries'] = [
       '#type' => 'radios',
@@ -232,7 +230,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#description' => $this->t("@suite formats: %formats<br />Image file extensions: %extensions", [
         '%formats' => implode(', ', $this->formatMapper->getEnabledFormats()),
         '%extensions' => Unicode::strtolower(implode(', ', static::getSupportedExtensions())),
-        '@suite' => $suite,
+        '@suite' => $this->execManager->getPackageLabel(),
       ]),
     ];
     // Image formats map.
@@ -250,7 +248,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
     ];
     // Image formats supported by the package.
     if (empty($status['errors'])) {
-      $command = $package === 'imagemagick' ? 'convert' : 'gm';
+      $command = $this->execManager->getPackage() === 'imagemagick' ? 'convert' : 'gm';
       $this->addArgument('-list format');
       $this->execManager->execute($command, $this->arguments, $output);
       $this->resetArguments();
@@ -260,7 +258,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
         '#collapsible' => TRUE,
         '#open' => FALSE,
         '#title' => $this->t('Format list'),
-        '#description' => $this->t("Supported image formats returned by executing <kbd>'convert -list format'</kbd>. <b>Note:</b> these are the formats supported by the installed @suite executable, <b>not</b> by the toolkit.<br /><br />", ['@suite' => $suite]),
+        '#description' => $this->t("Supported image formats returned by executing <kbd>'convert -list format'</kbd>. <b>Note:</b> these are the formats supported by the installed @suite executable, <b>not</b> by the toolkit.<br /><br />", ['@suite' => $this->execManager->getPackageLabel()]),
       ];
       $form['formats']['list']['list'] = [
         '#markup' => "<pre>" . $formats_info . "</pre>",
@@ -307,8 +305,21 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#title' => $this->t('Locale'),
       '#default_value' => $config->get('locale'),
       '#required' => FALSE,
-      '#description' => $this->t("The locale to be used to prepare the command passed to executables. The default, <kbd>'en_US.UTF-8'</kbd>, should work in most cases. If that is not available on the server, enter another locale. On *nix servers, type <kbd>'locale -a'</kbd> in a shell window to see a list of all locales available."),
+      '#description' => $this->t("The locale to be used to prepare the command passed to executables. The default, <kbd>'en_US.UTF-8'</kbd>, should work in most cases. If that is not available on the server, enter another locale. 'Installed Locales' below provides a list of locales installed on the server."),
     );
+    // Installed locales.
+    $locales = $this->execManager->getInstalledLocales();
+    $locales_info = implode('<br />', explode("\n", preg_replace('/\r/', '', Html::escape($locales))));
+    $form['exec']['installed_locales'] = [
+      '#type' => 'details',
+      '#collapsible' => TRUE,
+      '#open' => FALSE,
+      '#title' => $this->t('Installed locales'),
+      '#description' => $this->t("This is the list of all locales available on this server. It is the output of executing <kbd>'locale -a'</kbd> on the operating system."),
+    ];
+    $form['exec']['installed_locales']['list'] = [
+      '#markup' => "<pre>" . $locales_info . "</pre>",
+    ];
     // Debugging.
     $form['exec']['debug'] = array(
       '#type' => 'checkbox',

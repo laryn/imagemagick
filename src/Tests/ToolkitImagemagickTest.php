@@ -559,7 +559,7 @@ class ToolkitImagemagickTest extends WebTestBase {
     $this->assertFieldByName('image_toolkit', 'imagemagick');
     $edit = [
       'image_toolkit' => 'gd',
-      'imagemagick[suite][path_to_binaries]' => '/foo/bar',
+      'imagemagick[suite][path_to_binaries]' => '/foo/bar/',
     ];
     $this->drupalPostForm(NULL, $edit, 'Save configuration');
     $this->assertFieldByName('image_toolkit', 'gd');
