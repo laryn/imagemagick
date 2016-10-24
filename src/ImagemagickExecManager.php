@@ -203,13 +203,14 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
         if ($error === '') {
           $error = $this->t('No error message.');
         }
-        // Format $error.
-        $error = $this->t('@suite error @code: @error', array(
+        // Log $error with context information.
+        $this->logger->error('@suite error @code: @error for command @command @cmdline', array(
           '@suite' => $this->getPackageLabel(),
           '@code' => $return_code,
           '@error' => $error,
+          '@command' => $cmd,
+          '@cmdline' => $cmdline,
         ));
-        $this->logger->error($error);
         // Executable exited with an error code, return FALSE.
         return FALSE;
       }
