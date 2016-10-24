@@ -1111,12 +1111,12 @@ class ImagemagickToolkit extends ImageToolkitBase {
           $error = $this->t('No error message.');
         }
         // Format $error with as full message, passed by reference.
-        $error = $this->t('@suite error @code: @error', array(
+        $this->logger->error('@suite error @code: @error for command @cmdline', array(
           '@suite' => $suite,
           '@code' => $return_code,
           '@error' => $error,
+          '@cmdline' => $cmdline,
         ));
-        $this->logger->error($error);
         // Executable exited with an error code, return it.
         return $return_code;
       }
