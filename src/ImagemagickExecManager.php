@@ -251,10 +251,12 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
       while (!feof($pipes[1])) {
         $output .= fgets($pipes[1]);
       }
+      $output = utf8_encode($output);
       $error = '';
       while (!feof($pipes[2])) {
         $error .= fgets($pipes[2]);
       }
+      $error = utf8_encode($error);
       fclose($pipes[0]);
       fclose($pipes[1]);
       fclose($pipes[2]);
