@@ -199,18 +199,25 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
     if ($return_code !== FALSE) {
       // If the executable returned a non-zero code, log to the watchdog.
       if ($return_code != 0) {
-        // If there is no error message, clarify this.
         if ($error === '') {
-          $error = $this->t('No error message.');
+          // If there is no error message, log a warning.
+          $this->logger->warning("@suite returned with code @code [command: @command @cmdline]", [
+            '@suite' => $this->getPackageLabel(),
+            '@code' => $return_code,
+            '@command' => $cmd,
+            '@cmdline' => $cmdline,
+          ]);
         }
-        // Log $error with context information.
-        $this->logger->error('@suite error @code: @error for command @command @cmdline', array(
-          '@suite' => $this->getPackageLabel(),
-          '@code' => $return_code,
-          '@error' => $error,
-          '@command' => $cmd,
-          '@cmdline' => $cmdline,
-        ));
+        else {
+          // Log $error with context information.
+          $this->logger->error("@suite error @code: @error [command: @command @cmdline]", [
+            '@suite' => $this->getPackageLabel(),
+            '@code' => $return_code,
+            '@error' => $error,
+            '@command' => $cmd,
+            '@cmdline' => $cmdline,
+          ]);
+        }
         // Executable exited with an error code, return FALSE.
         return FALSE;
       }
