@@ -1106,17 +1106,23 @@ class ImagemagickToolkit extends ImageToolkitBase {
 
       // If the executable returned a non-zero code, log to the watchdog.
       if ($return_code != 0) {
-        // If there is no error message, clarify this.
         if ($error === '') {
-          $error = $this->t('No error message.');
+          // If there is no error message, log a warning.
+          $this->logger->warning("@suite returned with code @code [command: @cmdline]", [
+            '@suite' => $suite,
+            '@code' => $return_code,
+            '@cmdline' => $cmdline,
+          ]);
         }
-        // Format $error with as full message, passed by reference.
-        $this->logger->error('@suite error @code: @error for command @cmdline', array(
-          '@suite' => $suite,
-          '@code' => $return_code,
-          '@error' => $error,
-          '@cmdline' => $cmdline,
-        ));
+        else {
+          // Log $error with context information.
+          $this->logger->error("@suite error @code: @error [command: @cmdline]", [
+            '@suite' => $suite,
+            '@code' => $return_code,
+            '@error' => $error,
+            '@cmdline' => $cmdline,
+          ]);
+        }
         // Executable exited with an error code, return it.
         return $return_code;
       }
