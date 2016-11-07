@@ -320,6 +320,13 @@ class ImagemagickToolkit extends ImageToolkitBase {
     $form['exec']['installed_locales']['list'] = [
       '#markup' => "<pre>" . $locales_info . "</pre>",
     ];
+    // Log warnings.
+    $form['exec']['log_warnings'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Log warnings'),
+      '#default_value' => $config->get('log_warnings'),
+      '#description' => $this->t('Log a warning entry in the watchdog when the execution of a command returns with a non-zero code, but no error message.'),
+    ];
     // Debugging.
     $form['exec']['debug'] = array(
       '#type' => 'checkbox',
@@ -419,6 +426,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
       ->set('image_formats', Yaml::decode($form_state->getValue(['imagemagick', 'formats', 'mapping', 'image_formats'])))
       ->set('prepend', (string) $form_state->getValue(['imagemagick', 'exec', 'prepend']))
       ->set('locale', (string) $form_state->getValue(['imagemagick', 'exec', 'locale']))
+      ->set('log_warnings', (bool) $form_state->getValue(['imagemagick', 'exec', 'log_warnings']))
       ->set('debug', (bool) $form_state->getValue(['imagemagick', 'exec', 'debug']))
       ->set('advanced.density', (int) $form_state->getValue(['imagemagick', 'advanced', 'density']))
       ->set('advanced.colorspace', (string) $form_state->getValue(['imagemagick', 'advanced', 'colorspace']))

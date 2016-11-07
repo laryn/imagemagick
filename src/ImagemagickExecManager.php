@@ -200,13 +200,16 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
       // If the executable returned a non-zero code, log to the watchdog.
       if ($return_code != 0) {
         if ($error === '') {
-          // If there is no error message, log a warning.
-          $this->logger->warning("@suite returned with code @code [command: @command @cmdline]", [
-            '@suite' => $this->getPackageLabel(),
-            '@code' => $return_code,
-            '@command' => $cmd,
-            '@cmdline' => $cmdline,
-          ]);
+          // If there is no error message, and allowed in config, log a
+          // warning.
+          if ($this->configFactory->get('imagemagick.settings')->get('log_warnings') === TRUE) {
+            $this->logger->warning("@suite returned with code @code [command: @command @cmdline]", [
+              '@suite' => $this->getPackageLabel(),
+              '@code' => $return_code,
+              '@command' => $cmd,
+              '@cmdline' => $cmdline,
+            ]);
+          }
         }
         else {
           // Log $error with context information.

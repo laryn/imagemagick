@@ -17,6 +17,9 @@ imagemagick.settings:
     prepend:
       type: string
       label: 'Prepend arguments'
+    log_warnings:
+      type: boolean
+      label: 'Log command executions returning with non-zero code'
     debug:
       type: boolean
       label: 'Display debugging information'
