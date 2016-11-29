@@ -297,7 +297,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#title' => $this->t('Prepend arguments'),
       '#default_value' => $config->get('prepend'),
       '#required' => FALSE,
-      '#description' => $this->t('Additional arguments to add in front of the others when executing commands. Useful if you need to set e.g. <kbd>-limit</kbd> or <kbd>-debug</kbd> arguments.'),
+      '#description' => $this->t('Use this to add e.g. <kbd>-limit</kbd> or <kbd>-debug</kbd> arguments in front of the others when executing the <kbd>identify</kbd> and <kbd>convert</kbd> commands.'),
     );
     // Locale.
     $form['exec']['locale'] = array(
