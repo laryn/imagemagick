@@ -977,9 +977,10 @@ class ImagemagickToolkit extends ImageToolkitBase {
     // Execute the 'convert' or 'gm' command.
     $success = $this->execManager->execute($command, $this->arguments) && file_exists($this->getDestinationLocalPath());
 
-    // If successful, parsing was done via identify, and single frame image,
-    // we can safely build a new FileMetadata entry and assign data to it.
-    if ($success && $config->get('use_identify') && $this->getFrames() === 1) {
+    // If successful, parsing was done via identify, single frame image, and
+    // both width and height are defined, we can safely build a new
+    // FileMetadata entry and assign data to it.
+    if ($success && $config->get('use_identify') && $this->getFrames() === 1 && $this->getWidth() !== NULL && $this->getHeight() !== NULL) {
       $destination_image_md = $this->fileMetadataManager->uri($this->getDestination());
       $metadata = [
         'frames' => [
