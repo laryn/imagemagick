@@ -312,6 +312,13 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#required' => FALSE,
       '#description' => $this->t("The locale to be used to prepare the command passed to executables. The default, <kbd>'en_US.UTF-8'</kbd>, should work in most cases. If that is not available on the server, enter another locale. On *nix servers, type <kbd>'locale -a'</kbd> in a shell window to see a list of all locales available."),
     );
+    // Log warnings.
+    $form['exec']['log_warnings'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Log warnings'),
+      '#default_value' => $config->get('log_warnings'),
+      '#description' => $this->t('Log a warning entry in the watchdog when the execution of a command returns with a non-zero code, but no error message.'),
+    ];
     // Debugging.
     $form['exec']['debug'] = array(
       '#type' => 'checkbox',
@@ -476,6 +483,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
       ->set('image_formats', Yaml::decode($form_state->getValue(['imagemagick', 'formats', 'mapping', 'image_formats'])))
       ->set('prepend', $form_state->getValue(array('imagemagick', 'exec', 'prepend')))
       ->set('locale', $form_state->getValue(['imagemagick', 'exec', 'locale']))
+      ->set('log_warnings', (bool) $form_state->getValue(['imagemagick', 'exec', 'log_warnings']))
       ->set('debug', $form_state->getValue(array('imagemagick', 'exec', 'debug')))
       ->set('advanced.density', $form_state->getValue(array('imagemagick', 'advanced', 'density')))
       ->set('advanced.colorspace', $form_state->getValue(array('imagemagick', 'advanced', 'colorspace')))
@@ -1141,12 +1149,15 @@ class ImagemagickToolkit extends ImageToolkitBase {
       // If the executable returned a non-zero code, log to the watchdog.
       if ($return_code != 0) {
         if ($error === '') {
-          // If there is no error message, log a warning.
-          $this->logger->warning("@suite returned with code @code [command: @cmdline]", [
-            '@suite' => $suite,
-            '@code' => $return_code,
-            '@cmdline' => $cmdline,
-          ]);
+          // If there is no error message, and allowed in config, log a
+          // warning.
+          if ($this->configFactory->get('imagemagick.settings')->get('log_warnings') === TRUE) {
+            $this->logger->warning("@suite returned with code @code [command: @cmdline]", [
+              '@suite' => $suite,
+              '@code' => $return_code,
+              '@cmdline' => $cmdline,
+            ]);
+          }
         }
         else {
           // Log $error with context information.

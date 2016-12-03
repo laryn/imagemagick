@@ -51,5 +51,15 @@ function imagemagick_update_8001() {
 }
 
 /**
+ * Adds the 'log_warnings' config setting.
+ */
+function imagemagick_update_8002() {
+  $config_factory = \Drupal::configFactory();
+  $setting = $config_factory->getEditable('imagemagick.settings')
+    ->set('log_warnings', TRUE)
+    ->save(TRUE);
+}
+
+/**
  * @} End of "addtogroup updates-8.x-1.0-alpha".
  */
