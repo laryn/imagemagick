@@ -402,18 +402,19 @@ class ImagemagickToolkit extends ImageToolkitBase {
     $package = $package ?: $this->configFactory->get('imagemagick.settings')->get('binaries');
     $suite = $package === 'imagemagick' ? $this->t('ImageMagick') : $this->t('GraphicsMagick');
     $command = $package === 'imagemagick' ? 'convert' : 'gm';
-    $path .= $command;
 
     // If a path is given, we check whether the binary exists and can be
     // invoked.
-    if ($path != 'convert' && $path != 'gm') {
+    if (!empty($path)) {
+      $executable = $this->getExecutable($command, $path);
+
       // Check whether the given file exists.
-      if (!is_file($path)) {
-        $status['errors'][] = $this->t('The @suite executable %file does not exist.', array('@suite' => $suite, '%file' => $path));
+      if (!is_file($executable)) {
+        $status['errors'][] = $this->t('The @suite executable %file does not exist.', array('@suite' => $suite, '%file' => $executable));
       }
       // If it exists, check whether we can execute it.
-      elseif (!is_executable($path)) {
-        $status['errors'][] = $this->t('The @suite file %file is not executable.', array('@suite' => $suite, '%file' => $path));
+      elseif (!is_executable($executable)) {
+        $status['errors'][] = $this->t('The @suite file %file is not executable.', array('@suite' => $suite, '%file' => $executable));
       }
     }
 
@@ -1057,25 +1058,20 @@ class ImagemagickToolkit extends ImageToolkitBase {
   protected function imagemagickExec($command, &$output = NULL, &$error = NULL, $path = NULL) {
     $suite = $this->configFactory->get('imagemagick.settings')->get('binaries') === 'imagemagick' ? 'ImageMagick' : 'GraphicsMagick';
 
-    // $path is only passed from the validation of the image toolkit form, on
-    // which the path to convert is configured.
-    // @see ::checkPath()
-    if (!isset($path)) {
-      $path = $this->configFactory->get('imagemagick.settings')->get('path_to_binaries') . $command;
-    }
-
-    if (substr(PHP_OS, 0, 3) == 'WIN') {
+    $cmd = $this->getExecutable($command, $path);
+    if (substr(PHP_OS, 0, 3) === 'WIN') {
       // Use Window's start command with the /B flag to make the process run in
       // the background and avoid a shell command line window from showing up.
       // @see http://us3.php.net/manual/en/function.exec.php#56599
       // Use /D to run the command from PHP's current working directory so the
       // file paths don't have to be absolute.
-      $path = 'start "' . $suite . '" /D ' . $this->escapeShellArg($this->appRoot) . ' /B ' . $this->escapeShellArg($path);
+      $cmd = 'start "' . $suite . '" /D ' . $this->escapeShellArg($this->appRoot) . ' /B ' . $this->escapeShellArg($cmd);
     }
 
     if ($source_path = $this->getSourceLocalPath()) {
       $source_path = $this->escapeShellArg($source_path);
     }
+
     if ($destination_path = $this->getDestinationLocalPath()) {
       $destination_path = $this->escapeShellArg($destination_path);
       // If the format of the derivative image has to be changed, concatenate
@@ -1088,21 +1084,21 @@ class ImagemagickToolkit extends ImageToolkitBase {
 
     switch($command) {
       case 'identify':
-        $cmdline = $path . ' ' . implode(' ', $this->getArguments()) . ' ' . $source_path;
+        $cmdline = $cmd . ' ' . implode(' ', $this->getArguments()) . ' ' . $source_path;
         break;
 
       case 'convert':
         // ImageMagick arguments:
         // convert input [arguments] output
         // @see http://www.imagemagick.org/Usage/basics/#cmdline
-        $cmdline = $path . ' ' . $source_path . ' ' . implode(' ', $this->getArguments()) . ' ' . $destination_path;
+        $cmdline = $cmd . ' ' . $source_path . ' ' . implode(' ', $this->getArguments()) . ' ' . $destination_path;
         break;
 
       case 'gm':
         // GraphicsMagick arguments:
         // gm convert [arguments] input output
         // @see http://www.graphicsmagick.org/GraphicsMagick.html
-        $cmdline = $path . ' convert ' . implode(' ', $this->getArguments()) . ' '  . $source_path . ' ' . $destination_path;
+        $cmdline = $cmd . ' convert ' . implode(' ', $this->getArguments()) . ' '  . $source_path . ' ' . $destination_path;
         break;
 
     }
@@ -1177,6 +1173,33 @@ class ImagemagickToolkit extends ImageToolkitBase {
     }
     // The shell command could not be executed.
     return FALSE;
+  }
+
+  /**
+   * Returns the full path to the executable.
+   *
+   * @param string $command
+   *   The program to execute, typically 'convert', 'identify' or 'gm'.
+   * @param string $path
+   *   (optional) A custom path to the folder of the executable. When left
+   *   empty, the setting imagemagick.settings.path_to_binaries is taken.
+   *
+   * @return string
+   *   The full path to the executable.
+   */
+  public function getExecutable($command, $path = NULL) {
+    // $path is only passed from the validation of the image toolkit form, on
+    // which the path to convert is configured. @see ::checkPath()
+    if (!isset($path)) {
+      $path = $this->configFactory->get('imagemagick.settings')->get('path_to_binaries');
+    }
+
+    $executable = $command;
+    if (substr(PHP_OS, 0, 3) === 'WIN') {
+      $executable .= '.exe';
+    }
+
+    return $path . $executable;
   }
 
   /**
