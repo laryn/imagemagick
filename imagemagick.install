@@ -34,3 +34,22 @@ function imagemagick_requirements($phase) {
 
   return $requirements;
 }
+
+/**
+ * @addtogroup updates-8.x-1.0-alpha
+ * @{
+ */
+
+/**
+ * Adds the 'locale' config setting.
+ */
+function imagemagick_update_8001() {
+  $config_factory = \Drupal::configFactory();
+  $setting = $config_factory->getEditable('imagemagick.settings')
+    ->set('locale', 'en_US.UTF-8')
+    ->save(TRUE);
+}
+
+/**
+ * @} End of "addtogroup updates-8.x-1.0-alpha".
+ */

@@ -304,6 +304,14 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#required' => FALSE,
       '#description' => $this->t('Use this to add e.g. <kbd>-limit</kbd> or <kbd>-debug</kbd> arguments in front of the others when executing the <kbd>identify</kbd> and <kbd>convert</kbd> commands.'),
     );
+    // Locale.
+    $form['exec']['locale'] = array(
+      '#type' => 'textfield',
+      '#title' => $this->t('Locale'),
+      '#default_value' => $config->get('locale'),
+      '#required' => FALSE,
+      '#description' => $this->t("The locale to be used to prepare the command passed to executables. The default, <kbd>'en_US.UTF-8'</kbd>, should work in most cases. If that is not available on the server, enter another locale. On *nix servers, type <kbd>'locale -a'</kbd> in a shell window to see a list of all locales available."),
+    );
     // Debugging.
     $form['exec']['debug'] = array(
       '#type' => 'checkbox',
@@ -467,6 +475,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
       ->set('use_identify', $form_state->getValue(array('imagemagick', 'formats', 'use_identify')))
       ->set('image_formats', Yaml::decode($form_state->getValue(['imagemagick', 'formats', 'mapping', 'image_formats'])))
       ->set('prepend', $form_state->getValue(array('imagemagick', 'exec', 'prepend')))
+      ->set('locale', $form_state->getValue(['imagemagick', 'exec', 'locale']))
       ->set('debug', $form_state->getValue(array('imagemagick', 'exec', 'debug')))
       ->set('advanced.density', $form_state->getValue(array('imagemagick', 'advanced', 'density')))
       ->set('advanced.colorspace', $form_state->getValue(array('imagemagick', 'advanced', 'colorspace')))
@@ -826,17 +835,40 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *
    * PHP escapeshellarg() drops non-ascii characters, this is a replacement.
    *
-   * Stop-gap replacement while core issue #1561214 is solved.
+   * Stop-gap replacement while core issue #1561214 is solved. Solution
+   * proposed in #1502924-8.
    *
    * @return string
    *   An escaped string for use in the ::imagemagickExec method.
    */
   public function escapeShellArg($arg) {
-    // Solution proposed in #1502924-8.
-    $old_locale = setlocale(LC_CTYPE, 0);
-    setlocale(LC_CTYPE, 'en_US.UTF-8');
-    $arg_escaped = escapeshellarg($arg);
-    setlocale(LC_CTYPE, $old_locale);
+    // Put the configured locale in a static to avoid multiple config get calls
+    // in the same request.
+    static $config_locale;
+    if (!isset($config_locale)) {
+      $config_locale = $this->configFactory->get('imagemagick.settings')->get('locale');
+      if (empty($config_locale)) {
+        $config_locale = FALSE;
+      }
+    }
+
+    // If no locale specified in config, return with standard.
+    if ($config_locale === FALSE) {
+      return escapeshellarg($arg);
+    }
+
+    // Get the current locale.
+    $current_locale = setlocale(LC_CTYPE, 0);
+    // Swap the current locale with the config one, and back, to execute
+    // escapeshellarg().
+    if ($current_locale != $config_locale) {
+      setlocale(LC_CTYPE, $config_locale);
+      $arg_escaped = escapeshellarg($arg);
+      setlocale(LC_CTYPE, $current_locale);
+    }
+    else {
+      $arg_escaped = escapeshellarg($arg);
+    }
     return $arg_escaped;
   }
 
