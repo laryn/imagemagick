@@ -28,6 +28,13 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class ImagemagickToolkit extends ImageToolkitBase {
 
   /**
+   * Whether we are running on Windows OS.
+   *
+   * @var bool
+   */
+  protected $isWindows;
+
+  /**
    * The module handler service.
    *
    * @var \Drupal\Core\Extension\ModuleHandlerInterface
@@ -145,6 +152,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
     $this->moduleHandler = $module_handler;
     $this->formatMapper = $format_mapper;
     $this->appRoot = $app_root;
+    $this->isWindows = substr(PHP_OS, 0, 3) === 'WIN';
   }
 
   /**
@@ -844,16 +852,28 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *
    * PHP escapeshellarg() drops non-ascii characters, this is a replacement.
    *
-   * Stop-gap replacement while core issue #1561214 is solved. Solution
+   * Stop-gap replacement until core issue #1561214 has been solved. Solution
    * proposed in #1502924-8.
+   *
+   * PHP escapeshellarg() on Windows also drops % (percentage sign) characters.
+   * We prevent this by replacing it with a pattern that should be highly
+   * unlikely to appear in the string itself and does not contain any
+   * "dangerous" character at all (very wide definition of dangerous). After
+   * escaping we replace that pattern back with a % character.
+   *
+   * @param string $arg
+   *   The string to escape.
    *
    * @return string
    *   An escaped string for use in the ::imagemagickExec method.
    */
   public function escapeShellArg($arg) {
+    static $percentage_sign_replace_pattern = '1357902468IMAGEMAGICKPERCENTSIGNPATTERN8642097531';
+
     // Put the configured locale in a static to avoid multiple config get calls
     // in the same request.
     static $config_locale;
+
     if (!isset($config_locale)) {
       $config_locale = $this->configFactory->get('imagemagick.settings')->get('locale');
       if (empty($config_locale)) {
@@ -861,23 +881,34 @@ class ImagemagickToolkit extends ImageToolkitBase {
       }
     }
 
-    // If no locale specified in config, return with standard.
-    if ($config_locale === FALSE) {
-      return escapeshellarg($arg);
+    if ($this->isWindows) {
+      // Temporarily replace % characters.
+      $arg = str_replace('%', $percentage_sign_replace_pattern, $arg);
     }
 
-    // Get the current locale.
-    $current_locale = setlocale(LC_CTYPE, 0);
-    // Swap the current locale with the config one, and back, to execute
-    // escapeshellarg().
-    if ($current_locale != $config_locale) {
-      setlocale(LC_CTYPE, $config_locale);
+    // If no locale specified in config, return with standard.
+    if ($config_locale === FALSE) {
       $arg_escaped = escapeshellarg($arg);
-      setlocale(LC_CTYPE, $current_locale);
     }
     else {
-      $arg_escaped = escapeshellarg($arg);
+      // Get the current locale.
+      $current_locale = setlocale(LC_CTYPE, 0);
+      if ($current_locale != $config_locale) {
+        // Temporarily swap the current locale with the configured one.
+        setlocale(LC_CTYPE, $config_locale);
+        $arg_escaped = escapeshellarg($arg);
+        setlocale(LC_CTYPE, $current_locale);
+      }
+      else {
+        $arg_escaped = escapeshellarg($arg);
+      }
     }
+
+    // Get our % characters back.
+    if ($this->isWindows) {
+      $arg_escaped = str_replace($percentage_sign_replace_pattern, '%', $arg_escaped);
+    }
+
     return $arg_escaped;
   }
 
@@ -916,7 +947,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   TRUE if the file could be found and is an image, FALSE otherwise.
    */
   protected function parseFileViaIdentify() {
-    $this->addArgument('-format ' . $this->escapeShellArg("format:%m|width:%w|height:%h|exif_orientation:%[EXIF:Orientation]\n"));
+    $this->addArgument('-format ' . $this->escapeShellArg("format:%[magick]|width:%[width]|height:%[height]|exif_orientation:%[EXIF:Orientation]\\n"));
     if ($identify_output = $this->identify()) {
       $frames = explode("\n", $identify_output);
 
@@ -935,7 +966,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
       $data = [];
       foreach ($info as $item) {
         list($key, $value) = explode(':', $item);
-        $data[$key] = $value;
+        $data[trim($key)] = trim($value);
       }
       $format = isset($data['format']) ? $data['format'] : NULL;
       if ($this->formatMapper->isFormatEnabled($format)) {
@@ -1059,7 +1090,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
     $suite = $this->configFactory->get('imagemagick.settings')->get('binaries') === 'imagemagick' ? 'ImageMagick' : 'GraphicsMagick';
 
     $cmd = $this->getExecutable($command, $path);
-    if (substr(PHP_OS, 0, 3) === 'WIN') {
+    if ($this->isWindows) {
       // Use Window's start command with the /B flag to make the process run in
       // the background and avoid a shell command line window from showing up.
       // @see http://us3.php.net/manual/en/function.exec.php#56599
@@ -1195,7 +1226,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
     }
 
     $executable = $command;
-    if (substr(PHP_OS, 0, 3) === 'WIN') {
+    if ($this->isWindows) {
       $executable .= '.exe';
     }
 
