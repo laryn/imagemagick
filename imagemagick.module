@@ -51,7 +51,7 @@ function imagemagick_imagemagick_arguments_alter(ImagemagickExecArguments $argum
     $arguments->prependArgument($prepend);
   }
 
-  if ($command == 'convert' || $command == 'gm') {
+  if ($command == 'convert') {
     // Convert destination image URI to filepath.
     $local_path = $arguments->getDestinationLocalPath();
     if (empty($local_path)) {

@@ -182,13 +182,13 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#group' => 'imagemagick_settings',
     );
     $options = [
-      'imagemagick' => $this->execManager->getPackageLabel('imagemagick'),
-      'graphicsmagick' => $this->execManager->getPackageLabel('graphicsmagick'),
+      'imagemagick' => $this->getPackageLabel('imagemagick'),
+      'graphicsmagick' => $this->getPackageLabel('graphicsmagick'),
     ];
     $form['suite']['binaries'] = [
       '#type' => 'radios',
       '#title' => $this->t('Suite'),
-      '#default_value' => $config->get('binaries'),
+      '#default_value' => $this->getPackage(),
       '#options' => $options,
       '#required' => TRUE,
       '#description' => $this->t("Select the graphics package to use."),
@@ -230,7 +230,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#description' => $this->t("@suite formats: %formats<br />Image file extensions: %extensions", [
         '%formats' => implode(', ', $this->formatMapper->getEnabledFormats()),
         '%extensions' => Unicode::strtolower(implode(', ', static::getSupportedExtensions())),
-        '@suite' => $this->execManager->getPackageLabel(),
+        '@suite' => $this->getPackageLabel(),
       ]),
     ];
     // Image formats map.
@@ -248,9 +248,8 @@ class ImagemagickToolkit extends ImageToolkitBase {
     ];
     // Image formats supported by the package.
     if (empty($status['errors'])) {
-      $command = $this->execManager->getPackage() === 'imagemagick' ? 'convert' : 'gm';
       $this->addArgument('-list format');
-      $this->execManager->execute($command, $this->arguments, $output);
+      $this->execManager->execute('convert', $this->arguments, $output);
       $this->resetArguments();
       $formats_info = implode('<br />', explode("\n", preg_replace('/\r/', '', Html::escape($output))));
       $form['formats']['list'] = [
@@ -258,7 +257,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
         '#collapsible' => TRUE,
         '#open' => FALSE,
         '#title' => $this->t('Format list'),
-        '#description' => $this->t("Supported image formats returned by executing <kbd>'convert -list format'</kbd>. <b>Note:</b> these are the formats supported by the installed @suite executable, <b>not</b> by the toolkit.<br /><br />", ['@suite' => $this->execManager->getPackageLabel()]),
+        '#description' => $this->t("Supported image formats returned by executing <kbd>'convert -list format'</kbd>. <b>Note:</b> these are the formats supported by the installed @suite executable, <b>not</b> by the toolkit.<br /><br />", ['@suite' => $this->getPackageLabel()]),
       ];
       $form['formats']['list']['list'] = [
         '#markup' => "<pre>" . $formats_info . "</pre>",
@@ -383,6 +382,52 @@ class ImagemagickToolkit extends ImageToolkitBase {
     );
 
     return $form;
+  }
+
+  /**
+   * Gets the binaries package in use.
+   *
+   * @param string $package
+   *   (optional) Force the graphics package.
+   *
+   * @return string
+   *   The default package ('imagemagick'|'graphicsmagick'), or the $package
+   *   argument.
+   */
+  public function getPackage($package = NULL) {
+    return $this->execManager->getPackage($package);
+  }
+
+  /**
+   * Gets a translated label of the binaries package in use.
+   *
+   * @param string $package
+   *   (optional) Force the package.
+   *
+   * @return string
+   *   A translated label of the binaries package in use, or the $package
+   *   argument.
+   */
+  public function getPackageLabel($package = NULL) {
+    return $this->execManager->getPackageLabel($package);
+  }
+
+  /**
+   * Verifies file path of the executable binary by checking its version.
+   *
+   * @param string $path
+   *   The user-submitted file path to the convert binary.
+   * @param string $package
+   *   (optional) The graphics package to use.
+   *
+   * @return array
+   *   An associative array containing:
+   *   - output: The shell output of 'convert -version', if any.
+   *   - errors: A list of error messages indicating if the executable could
+   *     not be found or executed.
+   */
+  public function checkPath($path, $package = NULL) {
+    return $this->execManager->checkPath($path, $package);
   }
 
   /**
@@ -840,8 +885,6 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   TRUE if the file could be found and is an image, FALSE otherwise.
    */
   protected function parseFileViaIdentify() {
-    $config = $this->configFactory->get('imagemagick.settings');
-
     // Get 'imagemagick_identify' metadata for this image. The file metadata
     // plugin will fetch it from the file via the ::identify() method if data
     // is not already available.
@@ -958,7 +1001,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
     }
 
     // Allow modules to alter the command line parameters.
-    $command = $config->get('binaries') === 'imagemagick' ? 'convert' : 'gm';
+    $command = 'convert';
     $this->moduleHandler->alter('imagemagick_arguments', $this->arguments, $command);
 
     // Delete any cached file metadata for the image file, before creating
@@ -974,7 +1017,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
       $this->arguments->setSourceFrames('[0]');
     }
 
-    // Execute the 'convert' or 'gm' command.
+    // Execute the command.
     $success = $this->execManager->execute($command, $this->arguments) && file_exists($this->getDestinationLocalPath());
 
     // If successful, parsing was done via identify, single frame image, and

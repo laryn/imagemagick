@@ -106,13 +106,13 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
     );
 
     // Execute gm or convert based on settings.
-    $command = $this->getPackage($package) === 'imagemagick' ? 'convert' : 'gm';
+    $package = $package ?: $this->getPackage();
+    $binary = $package === 'imagemagick' ? 'convert' : 'gm';
+    $executable = $this->getExecutable($binary, $path);
 
     // If a path is given, we check whether the binary exists and can be
     // invoked.
     if (!empty($path)) {
-      $executable = $this->getExecutable($command, $path);
-
       // Check whether the given file exists.
       if (!is_file($executable)) {
         $status['errors'][] = $this->t('The @suite executable %file does not exist.', array('@suite' => $this->getPackageLabel($package), '%file' => $executable));
@@ -135,9 +135,7 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
     // Unless we had errors so far, try to invoke convert.
     if (!$status['errors']) {
       $error = NULL;
-      $arguments = new ImagemagickExecArguments();
-      $arguments->addArgument('-version');
-      $this->execute($command, $arguments, $status['output'], $error, $path);
+      $this->runOsShell($executable, '-version', $package, $status['output'], $error);
       if ($error !== '') {
         $status['errors'][] = $error;
       }
@@ -150,7 +148,17 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
    * {@inheritdoc}
    */
   public function execute($command, ImagemagickExecArguments $arguments, &$output = NULL, &$error = NULL, $path = NULL) {
-    $cmd = $this->getExecutable($command, $path);
+    switch ($command) {
+      case 'convert':
+        $binary = $this->getPackage() === 'imagemagick' ? 'convert' : 'gm';
+        break;
+
+      case 'identify':
+        $binary = $this->getPackage() === 'imagemagick' ? 'identify' : 'gm';
+        break;
+
+    }
+    $cmd = $this->getExecutable($binary, $path);
 
     if ($source_path = $arguments->getSourceLocalPath()) {
       if (($source_frames = $arguments->getSourceFrames()) !== NULL) {
@@ -171,25 +179,39 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
 
     switch ($command) {
       case 'identify':
-        $cmdline = implode(' ', $arguments->getArguments()) . ' ' . $source_path;
+        switch($this->getPackage()) {
+          case 'imagemagick':
+            // ImageMagick syntax:
+            // identify [arguments] source
+            $cmdline = implode(' ', $arguments->getArguments()) . ' ' . $source_path;
+            break;
+
+          case 'graphicsmagick':
+            // GraphicsMagick syntax:
+            // gm identify [arguments] source
+            $cmdline = 'identify ' . implode(' ', $arguments->getArguments()) . ' ' . $source_path;
+            break;
+
+        }
         break;
 
       case 'convert':
-        // ImageMagick arguments.
-        // Command line format: "convert input [arguments] output".
-        // @see http://www.imagemagick.org/Usage/basics/#cmdline
-        $cmdline = '';
-        if ($source_path) {
-          $cmdline .= $source_path . ' ';
-        }
-        $cmdline .= implode(' ', $arguments->getArguments()) . ' ' . $destination_path;
-        break;
+        switch($this->getPackage()) {
+          case 'imagemagick':
+            // ImageMagick syntax:
+            // convert input [arguments] output
+            // @see http://www.imagemagick.org/Usage/basics/#cmdline
+            $cmdline = $source_path . ' ' . implode(' ', $arguments->getArguments()) . ' ' . $destination_path;
+            break;
 
-      case 'gm':
-        // GraphicsMagick arguments.
-        // Command line format: "gm convert [arguments] input output".
-        // @see http://www.graphicsmagick.org/GraphicsMagick.html
-        $cmdline = 'convert ' . implode(' ', $arguments->getArguments()) . ' ' . $source_path . ' ' . $destination_path;
+          case 'graphicsmagick':
+            // GraphicsMagick syntax:
+            // gm convert [arguments] input output
+            // @see http://www.graphicsmagick.org/GraphicsMagick.html
+            $cmdline = 'convert ' . implode(' ', $arguments->getArguments()) . ' '  . $source_path . ' ' . $destination_path;
+            break;
+
+        }
         break;
 
     }
@@ -310,7 +332,7 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
   /**
    * Returns the full path to the executable.
    *
-   * @param string $command
+   * @param string $binary
    *   The program to execute, typically 'convert', 'identify' or 'gm'.
    * @param string $path
    *   (optional) A custom path to the folder of the executable. When left
@@ -319,14 +341,14 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
    * @return string
    *   The full path to the executable.
    */
-  protected function getExecutable($command, $path = NULL) {
+  protected function getExecutable($binary, $path = NULL) {
     // $path is only passed from the validation of the image toolkit form, on
     // which the path to convert is configured. @see ::checkPath()
     if (!isset($path)) {
       $path = $this->configFactory->get('imagemagick.settings')->get('path_to_binaries');
     }
 
-    $executable = $command;
+    $executable = $binary;
     if ($this->isWindows) {
       $executable .= '.exe';
     }

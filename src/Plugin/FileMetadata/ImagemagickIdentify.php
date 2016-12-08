@@ -209,8 +209,17 @@ class ImagemagickIdentify extends FileMetadataPluginBase {
     // Add source file.
     $arguments->setSource($this->getLocalTempPath());
 
-    // Add -format argument.
-    $arguments->addArgument('-format ' . $this->execManager->escapeShellArg("format:%[magick]|width:%[width]|height:%[height]|exif_orientation:%[EXIF:Orientation]\\n"));
+    // Prepare the -format argument according to the graphics package in use.
+    switch ($this->execManager->getPackage()) {
+      case 'imagemagick':
+        $arguments->addArgument('-format ' . $this->execManager->escapeShellArg("format:%[magick]|width:%[width]|height:%[height]|exif_orientation:%[EXIF:Orientation]\\n"));
+        break;
+
+      case 'graphicsmagick':
+        $arguments->addArgument('-format ' . $this->execManager->escapeShellArg("format:%m|width:%w|height:%h|exif_orientation:%[EXIF:Orientation]\\n"));
+        break;
+
+    }
 
     // Allow modules to alter source file and the command line parameters.
     $command = 'identify';

@@ -63,27 +63,63 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
    * Test image toolkit integration with file metadata manager.
    */
   public function testFileMetadata() {
-    $config = \Drupal::configFactory()->getEditable('imagemagick.settings');
-    $config_mdm = \Drupal::configFactory()->getEditable('file_mdm.settings');
-
-    // The test can only be executed if the ImageMagick 'convert' is
-    // available on the shell path.
-    $status = \Drupal::service('imagemagick.exec_manager')->checkPath('');
-    if (!empty($status['errors'])) {
-      // Bots running automated test on d.o. do not have ImageMagick
-      // installed, so there's no purpose to try and run this test there;
-      // it can be run locally where ImageMagick is installed.
-      debug('Tests for the Imagemagick toolkit cannot run because the \'convert\' executable is not available on the shell path.');
-      return;
-    }
-
     // Change the toolkit.
     \Drupal::configFactory()->getEditable('system.image')
       ->set('toolkit', 'imagemagick')
       ->save();
+    \Drupal::configFactory()->getEditable('imagemagick.settings')
+      ->set('debug', TRUE)
+      ->set('binaries', 'imagemagick')
+      ->set('quality', 100)
+      ->save();
+
     // Set the toolkit on the image factory.
     $this->imageFactory->setToolkitId('imagemagick');
-    $config->set('debug', TRUE)->save();
+
+    // Execute tests with ImageMagick.
+    // The test can only be executed if ImageMagick's 'convert' is available
+    // on the shell path.
+    $status = \Drupal::service('image.toolkit.manager')->createInstance('imagemagick')->checkPath('');
+    if (!empty($status['errors'])) {
+      // Bots running automated test on d.o. do not have ImageMagick
+      // installed, so there's no purpose to try and run this test there;
+      // it can be run locally where ImageMagick is installed.
+      debug('Tests for ImageMagick cannot run because the \'convert\' binary is not available on the shell path.');
+    }
+    else {
+      $this->doTestFileMetadata();
+    }
+
+    // Reset file_mdm settings.
+    \Drupal::configFactory()->getEditable('file_mdm.settings')
+      ->set('metadata_cache.enabled', TRUE)
+      ->set('metadata_cache.disallowed_paths', [])
+      ->save();
+
+    // Execute tests with GraphicsMagick.
+    // The test can only be executed if GraphicsMagick's 'gm' is available on
+    // the shell path.
+    \Drupal::configFactory()->getEditable('imagemagick.settings')
+      ->set('binaries', 'graphicsmagick')
+      ->save();
+    $status = \Drupal::service('image.toolkit.manager')->createInstance('imagemagick')->checkPath('');
+    if (!empty($status['errors'])) {
+      // Bots running automated test on d.o. do not have GraphicsMagick
+      // installed, so there's no purpose to try and run this test there;
+      // it can be run locally where GraphicsMagick is installed.
+      debug('Tests for GraphicsMagick cannot run because the \'gm\' binary is not available on the shell path.');
+    }
+    else {
+      $this->doTestFileMetadata();
+    }
+  }
+
+  /**
+   * Test image toolkit integration with file metadata manager per package.
+   */
+  public function doTestFileMetadata() {
+    $config = \Drupal::configFactory()->getEditable('imagemagick.settings');
+    $config_mdm = \Drupal::configFactory()->getEditable('file_mdm.settings');
 
     // A list of files that will be tested.
     $files = array(
