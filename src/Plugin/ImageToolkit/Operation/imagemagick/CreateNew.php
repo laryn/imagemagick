@@ -81,11 +81,24 @@ class CreateNew extends ImagemagickImageToolkitOperationBase {
       ->setWidth($arguments['width'])
       ->setHeight($arguments['height'])
       ->setExifOrientation(NULL)
-      ->setFrames(NULL)
-      ->addArgument('-size ' . $arguments['width'] . 'x' . $arguments['height'] . ' xc:transparent');
+      ->setFrames(NULL);
+    $arg = '-size ' . $arguments['width'] . 'x' . $arguments['height'] . ' xc:transparent';
+
+    // Transparent color syntax for GIF files differs by package.
     if ($arguments['extension'] == 'gif') {
-      $this->getToolkit()->addArgument('-transparent-color ' . $this->getToolkit()->escapeShellArg($arguments['transparent_color']));
+      switch ($this->getToolkit()->getPackage()) {
+        case 'imagemagick':
+          $arg .= ' -transparent-color ' . $this->getToolkit()->escapeShellArg($arguments['transparent_color']);
+          break;
+
+        case 'graphicsmagick':
+          $arg .= ' -transparent ' . $this->getToolkit()->escapeShellArg($arguments['transparent_color']);
+          break;
+
+      }
     }
+
+    $this->getToolkit()->addArgument($arg);
     return TRUE;
   }
 
