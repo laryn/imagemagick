@@ -65,7 +65,6 @@ class ToolkitImagemagickTest extends WebTestBase {
 
     // Prepare a directory for test file results.
     $this->testDirectory = 'public://imagetest';
-    file_prepare_directory($this->testDirectory, FILE_CREATE_DIRECTORY);
   }
 
   /**
@@ -143,6 +142,9 @@ class ToolkitImagemagickTest extends WebTestBase {
    * the expected height and widths for the final images.
    */
   public function doTestManipulations() {
+    file_unmanaged_delete_recursive($this->testDirectory);
+    file_prepare_directory($this->testDirectory, FILE_CREATE_DIRECTORY);
+
     // Typically the corner colors will be unchanged. These colors are in the
     // order of top-left, top-right, bottom-right, bottom-left.
     $default_corners = array($this->red, $this->green, $this->blue, $this->transparent);
@@ -437,14 +439,11 @@ class ToolkitImagemagickTest extends WebTestBase {
       $this->assertEqual(50, $image_reloaded->getWidth(), "Image file '$file' has the correct width.");
       $this->assertEqual(20, $image_reloaded->getHeight(), "Image file '$file' has the correct height.");
       $this->assertEqual(image_type_to_mime_type($type), $image_reloaded->getMimeType(), "Image file '$file' has the correct MIME type.");
-      // @todo This does not work with GraphicsMagick, investigate.
-      if ($package === 'imagemagick') {
-        if ($image_reloaded->getToolkit()->getType() == IMAGETYPE_GIF) {
-          $this->assertEqual('#ffff00', $image_reloaded->getToolkit()->getTransparentColor(), "Image file '$file' has the correct transparent color channel set.");
-        }
-        else {
-          $this->assertEqual(NULL, $image_reloaded->getToolkit()->getTransparentColor(), "Image file '$file' has no color channel set.");
-        }
+      if ($image_reloaded->getToolkit()->getType() == IMAGETYPE_GIF) {
+        $this->assertEqual('#ffff00', $image_reloaded->getToolkit()->getTransparentColor(), "Image file '$file' has the correct transparent color channel set.");
+      }
+      else {
+        $this->assertEqual(NULL, $image_reloaded->getToolkit()->getTransparentColor(), "Image file '$file' has no color channel set.");
       }
     }
 
@@ -476,11 +475,11 @@ class ToolkitImagemagickTest extends WebTestBase {
       'viet "with double quotes" hình ảnh thử nghiệm.png',
     ];
     foreach ($file_names as $file) {
-      $file_path = $this->testDirectory . '/' . $file;
-      $image = $this->imageFactory->get(NULL);
+      $image = $this->imageFactory->get();
       $this->assertTrue($image->createNew(50, 20, 'png'));
+      $file_path = $this->testDirectory . '/' . $file;
       $this->assertTrue($image->save($file_path));
-      $image_reloaded = $this->imageFactory->get($file_path);
+      $image_reloaded = $this->imageFactory->get($file_path, 'gd');
       $this->assertTrue($image_reloaded->isValid(), "Image file '$file' loaded successfully.");
     }
 
