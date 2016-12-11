@@ -35,6 +35,11 @@ class Scale extends Resize {
         'required' => FALSE,
         'default' => FALSE,
       ),
+      'filter' => [
+        'description' => 'An optional filter to apply for the resize',
+        'required' => FALSE,
+        'default' => '',
+      ],
     );
   }
 

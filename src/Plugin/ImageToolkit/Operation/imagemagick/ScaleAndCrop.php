@@ -26,6 +26,11 @@ class ScaleAndCrop extends ImagemagickImageToolkitOperationBase {
       'height' => array(
         'description' => 'The target height, in pixels',
       ),
+      'filter' => [
+        'description' => 'An optional filter to apply for the resize',
+        'required' => FALSE,
+        'default' => '',
+      ],
     );
   }
 
@@ -43,6 +48,7 @@ class ScaleAndCrop extends ImagemagickImageToolkitOperationBase {
     $arguments['resize'] = array(
       'width' => (int) round($actual_width * $scale_factor),
       'height' => (int) round($actual_height * $scale_factor),
+      'filter' => $arguments['filter'],
     );
 
     // Fail when width or height are 0 or negative.
