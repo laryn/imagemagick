@@ -31,6 +31,11 @@ class Rotate extends ImagemagickImageToolkitOperationBase {
         'required' => FALSE,
         'default' => NULL,
       ),
+      'resize_filter' => [
+        'description' => 'An optional filter to apply for the resize',
+        'required' => FALSE,
+        'default' => '',
+      ],
     );
   }
 
@@ -57,14 +62,15 @@ class Rotate extends ImagemagickImageToolkitOperationBase {
    */
   protected function execute(array $arguments) {
     // Rotate.
-    $this->getToolkit()
-      ->addArgument('-background ' . $this->getToolkit()->escapeShellArg($arguments['background']))
-      ->addArgument('-rotate ' . $arguments['degrees'])
-      ->addArgument('+repage');
+    $arg = '-background ' . $this->getToolkit()->escapeShellArg($arguments['background']);
+    $arg .= ' -rotate ' . $arguments['degrees'];
+    $arg .= ' +repage';
+    $this->getToolkit()->addArgument($arg);
 
-    // Adjust width and height.
+    // Need to resize the image after rotation to make sure it complies with
+    // the dimensions expected, calculated via the Rectangle class.
     $box = new Rectangle($this->getToolkit()->getWidth(), $this->getToolkit()->getHeight());
     $box = $box->rotate((float) $arguments['degrees']);
-    return $this->getToolkit()->apply('resize', ['width' => $box->getBoundingWidth(), 'height' => $box->getBoundingHeight()]);
+    return $this->getToolkit()->apply('resize', ['width' => $box->getBoundingWidth(), 'height' => $box->getBoundingHeight(), 'filter' => $arguments['resize_filter']]);
   }
 }

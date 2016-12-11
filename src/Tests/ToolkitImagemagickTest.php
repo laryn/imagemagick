@@ -244,7 +244,7 @@ class ToolkitImagemagickTest extends WebTestBase {
       ),
       'rotate_5' => array(
         'function' => 'rotate',
-        'arguments' => array('degrees' => 5, 'background' => '#FF00FF'), // Fuchsia background.
+        'arguments' => ['degrees' => 5, 'background' => '#FF00FF', 'resize_filter' => 'Box'],
         'width' => 41,
         'height' => 23,
         'corners' => array_fill(0, 4, $this->fuchsia),
@@ -252,7 +252,7 @@ class ToolkitImagemagickTest extends WebTestBase {
       ),
       'rotate_minus_10' => array(
         'function' => 'rotate',
-        'arguments' => array('degrees' => -10, 'background' => '#FF00FF'), // Fuchsia background.
+        'arguments' => ['degrees' => -10, 'background' => '#FF00FF', 'resize_filter' => 'Box'],
         'width' => 41,
         'height' => 26,
         'corners' => array_fill(0, 4, $this->fuchsia),
@@ -268,7 +268,7 @@ class ToolkitImagemagickTest extends WebTestBase {
       ),
       'rotate_transparent_5' => array(
         'function' => 'rotate',
-        'arguments' => array('degrees' => 5),
+        'arguments' => ['degrees' => 5, 'resize_filter' => 'Box'],
         'width' => 41,
         'height' => 23,
         'corners' => array_fill(0, 4, $this->transparent),
@@ -332,11 +332,6 @@ class ToolkitImagemagickTest extends WebTestBase {
           if (in_array($file, ['image-test.gif', 'image-test-no-transparency.gif']) && in_array($op, ['crop', 'scale_and_crop'])) {
             debug("Skip GD check on $file, operation $op.");
             continue;
-          }
-          // @todo Issues with colors after rotate on GIF and PNG files,
-          // investigate.
-          if (in_array($file, ['image-test.png', 'image-test.gif', 'image-test-no-transparency.gif']) && in_array($op, ['rotate_5', 'rotate_transparent_5'])) {
-            $values['tolerance'] = 85000;
           }
         }
 
