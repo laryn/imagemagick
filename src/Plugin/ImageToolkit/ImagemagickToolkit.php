@@ -32,6 +32,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class ImagemagickToolkit extends ImageToolkitBase {
 
   /**
+   * EXIF orientation not fetched.
+   */
+  const EXIF_ORIENTATION_NOT_FETCHED = -99;
+
+  /**
    * The module handler service.
    *
    * @var \Drupal\Core\Extension\ModuleHandlerInterface
@@ -88,11 +93,11 @@ class ImagemagickToolkit extends ImageToolkitBase {
   protected $frames;
 
   /**
-   * Keeps a copy of source image EXIF information.
+   * Image orientation retrieved from EXIF information.
    *
-   * @var array
+   * @var int
    */
-  protected $exifInfo = [];
+  protected $exifOrientation;
 
   /**
    * Constructs an ImagemagickToolkit object.
@@ -569,10 +574,20 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   The source EXIF orientation.
    */
   public function getExifOrientation() {
-    if (empty($this->exifInfo)) {
-      $this->parseExifData();
+    if ($this->exifOrientation === static::EXIF_ORIENTATION_NOT_FETCHED) {
+      if ($this->getSource() !== NULL) {
+        $file_md = $this->fileMetadataManager->uri($this->getSource());
+        if ($file_md->getLocalTempPath() === NULL) {
+          $file_md->setLocalTempPath($this->getSourceLocalPath());
+        }
+        $orientation = $file_md->getMetadata('exif', 'Orientation');
+        $this->setExifOrientation(isset($orientation['value']) ? $orientation['value'] : NULL);
+      }
+      else {
+        $this->setExifOrientation(NULL);
+      }
     }
-    return isset($this->exifInfo['Orientation']) ? $this->exifInfo['Orientation'] : NULL;
+    return $this->exifOrientation;
   }
 
   /**
@@ -584,10 +599,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @return $this
    */
   public function setExifOrientation($exif_orientation) {
-    if (!$exif_orientation) {
-      return $this;
-    }
-    $this->exifInfo['Orientation'] = (int) $exif_orientation !== 0 ? (int) $exif_orientation : NULL;
+    $this->exifOrientation = $exif_orientation ? (int) $exif_orientation : NULL;
     return $this;
   }
 
@@ -943,44 +955,13 @@ class ImagemagickToolkit extends ImageToolkitBase {
         ->setWidth($data[0])
         ->setHeight($data[1])
         // 'getimagesize' cannot provide information on number of frames in an
-        // image and EXIF orientation, so set to NULL as a default.
-        ->setExifOrientation(NULL)
+        // image and EXIF orientation, so set to defaults.
+        ->setExifOrientation(static::EXIF_ORIENTATION_NOT_FETCHED)
         ->setFrames(NULL);
       return TRUE;
     }
 
     return FALSE;
-  }
-
-  /**
-   * Parses the image file EXIF data using the PHP read_exif_data() function.
-   *
-   * @return $this
-   */
-  protected function parseExifData() {
-    $continue = TRUE;
-    // Test to see if EXIF is supported by the image format.
-    $mime_type = $this->getMimeType();
-    if (!in_array($mime_type, ['image/jpeg', 'image/tiff'])) {
-      // Not an EXIF enabled image.
-      $continue = FALSE;
-    }
-    $local_path = $this->getSourceLocalPath();
-    if ($continue && empty($local_path)) {
-      // No file path available. Most likely a new image from scratch.
-      $continue = FALSE;
-    }
-    if ($continue && !function_exists('exif_read_data')) {
-      // No PHP EXIF extension enabled, return.
-      $this->logger->error('The PHP EXIF extension is not installed. The \'imagemagick\' toolkit is unable to automatically determine image orientation.');
-      $continue = FALSE;
-    }
-    if ($continue && ($exif_data = @exif_read_data($this->getSourceLocalPath()))) {
-      $this->exifInfo = $exif_data;
-      return $this;
-    }
-    $this->setExifOrientation(NULL);
-    return $this;
   }
 
   /**

@@ -46,7 +46,14 @@ class ToolkitImagemagickTest extends WebTestBase {
    *
    * @var array
    */
-  protected static $modules = ['system', 'simpletest', 'file_test', 'imagemagick', 'file_mdm'];
+  protected static $modules = [
+    'system',
+    'simpletest',
+    'file_test',
+    'imagemagick',
+    'file_mdm',
+    'file_mdm_exif',
+  ];
 
   /**
    * {@inheritdoc}
@@ -492,11 +499,19 @@ class ToolkitImagemagickTest extends WebTestBase {
     $this->assertIdentical('', $image->getToolkit()->getDestinationLocalPath());
 
     // Test retrieval of EXIF information.
-
+    file_unmanaged_copy(drupal_get_path('module', 'imagemagick') . '/misc/test-exif.jpeg', 'public://', FILE_EXISTS_REPLACE);
     // The image files that will be tested.
     $image_files = [
       [
         'path' => drupal_get_path('module', 'imagemagick') . '/misc/test-exif.jpeg',
+        'orientation' => 8,
+      ],
+      [
+        'path' => 'public://test-exif.jpeg',
+        'orientation' => 8,
+      ],
+      [
+        'path' => 'dummy-remote://test-exif.jpeg',
         'orientation' => 8,
       ],
       [
