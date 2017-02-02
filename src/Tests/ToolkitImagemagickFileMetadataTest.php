@@ -57,12 +57,7 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
 
     // Prepare a directory for test file results.
     $this->testDirectory = 'public://imagetest';
-  }
 
-  /**
-   * Test image toolkit integration with file metadata manager.
-   */
-  public function testFileMetadata() {
     // Change the toolkit.
     \Drupal::configFactory()->getEditable('system.image')
       ->set('toolkit', 'imagemagick')
@@ -75,7 +70,12 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
 
     // Set the toolkit on the image factory.
     $this->imageFactory->setToolkitId('imagemagick');
+  }
 
+  /**
+   * Test image toolkit integration with file metadata manager.
+   */
+  public function testFileMetadata() {
     // Execute tests with ImageMagick.
     // The test can only be executed if ImageMagick's 'convert' is available
     // on the shell path.
@@ -564,6 +564,44 @@ class ToolkitImagemagickFileMetadataTest extends WebTestBase {
         $this->assertFalse($fmdm->has($source_uri));
       }
     }
+  }
+
+  /**
+   * Tests getSourceLocalPath() for re-creating local path.
+   */
+  public function testSourceLocalPath() {
+    $config = \Drupal::configFactory()->getEditable('imagemagick.settings');
+    $config_mdm = \Drupal::configFactory()->getEditable('file_mdm.settings');
+
+    // The file metadata manager service.
+    $fmdm = $this->container->get('file_metadata_manager');
+
+    // The file that will be tested.
+    $source_uri = 'public://image-test.png';
+
+    // Prepare a copy of test files.
+    $this->drupalGetTestFiles('image');
+
+    // Enable metadata caching.
+    $config_mdm->set('metadata_cache.enabled', TRUE)->save();
+
+    // Parse with identify.
+    $config->set('use_identify', TRUE)->save();
+
+    // Load up the image.
+    $image = $this->imageFactory->get($source_uri);
+    $this->assertEqual($source_uri, $image->getToolkit()->getSource());
+    $this->assertEqual(drupal_realpath($source_uri), $image->getToolkit()->getSourceLocalPath());
+
+    // Free up the URI from the file metadata manager to force reload from
+    // cache. Simulates that next imageFactory->get is from another request.
+    $fmdm->release($source_uri);
+
+    // Re-load the image, getLocalSourcePath should still return the local
+    // path.
+    $image1 = $this->imageFactory->get($source_uri);
+    $this->assertEqual($source_uri, $image1->getToolkit()->getSource());
+    $this->assertEqual(drupal_realpath($source_uri), $image1->getToolkit()->getSourceLocalPath());
   }
 
 }

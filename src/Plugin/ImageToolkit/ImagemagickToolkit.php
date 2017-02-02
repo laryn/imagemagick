@@ -514,6 +514,13 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   A filesystem path.
    */
   public function getSourceLocalPath() {
+    // If sourceLocalPath is NULL, then ensure it is prepared. This can
+    // happen if image was identified via cached metadata: the cached data are
+    // available, but the temp file path is not resolved, or even the temp file
+    // could be missing if it was copied locally from a remote file system.
+    if (!$this->arguments->getSourceLocalPath() && $this->getSource()) {
+      $this->moduleHandler->alter('imagemagick_pre_parse_file', $this->arguments);
+    }
     return $this->arguments->getSourceLocalPath();
   }
 
@@ -973,21 +980,16 @@ class ImagemagickToolkit extends ImageToolkitBase {
   protected function convert() {
     $config = $this->configFactory->get('imagemagick.settings');
 
-    // If sourceLocalPath is NULL, then ensure it is prepared. This can
-    // happen if image was identified via cached metadata: the cached data are
-    // available, but the temp file path is not resolved, or even the temp file
-    // could be missing if it was copied locally from a remote file system.
-    if (!$this->getSourceLocalPath()) {
-      $this->moduleHandler->alter('imagemagick_pre_parse_file', $this->arguments);
-    }
+    // Ensure sourceLocalPath is prepared.
+    $this->getSourceLocalPath();
 
     // Allow modules to alter the command line parameters.
     $command = 'convert';
     $this->moduleHandler->alter('imagemagick_arguments', $this->arguments, $command);
 
-    // Delete any cached file metadata for the image file, before creating
-    // a new one, and release the URI from the manager so that metadata will
-    // not stick in the same request.
+    // Delete any cached file metadata for the destination image file, before
+    // creating a new one, and release the URI from the manager so that
+    // metadata will not stick in the same request.
     $this->fileMetadataManager->deleteCachedMetadata($this->getDestination());
     $this->fileMetadataManager->release($this->getDestination());
 
