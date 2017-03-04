@@ -12,7 +12,7 @@ class ImagemagickExecArguments {
    *
    * @var string[]
    */
-  protected $arguments = array();
+  protected $arguments = [];
 
   /**
    * Path of the image file.
@@ -70,7 +70,7 @@ class ImagemagickExecArguments {
    *   The array of command line arguments.
    */
   public function getArguments() {
-    return $this->arguments ?: array();
+    return $this->arguments ?: [];
   }
 
   /**
@@ -139,7 +139,7 @@ class ImagemagickExecArguments {
    * @return $this
    */
   public function resetArguments() {
-    $this->arguments = array();
+    $this->arguments = [];
     return $this;
   }
 

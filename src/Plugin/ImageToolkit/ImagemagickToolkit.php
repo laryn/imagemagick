@@ -156,13 +156,13 @@ class ImagemagickToolkit extends ImageToolkitBase {
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
     $config = $this->configFactory->getEditable('imagemagick.settings');
 
-    $form['imagemagick'] = array(
+    $form['imagemagick'] = [
       '#markup' => $this->t("<a href=':im-url'>ImageMagick</a> and <a href=':gm-url'>GraphicsMagick</a> are stand-alone packages for image manipulation. At least one of them must be installed on the server, and you need to know where it is located. Consult your server administrator or hosting provider for details.", [
         ':im-url' => 'http://www.imagemagick.org',
         ':gm-url' => 'http://www.graphicsmagick.org',
       ]),
-    );
-    $form['quality'] = array(
+    ];
+    $form['quality'] = [
       '#type' => 'number',
       '#title' => $this->t('Image quality'),
       '#size' => 10,
@@ -172,20 +172,20 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#default_value' => $config->get('quality'),
       '#field_suffix' => '%',
       '#description' => $this->t('Define the image quality of processed images. Ranges from 0 to 100. Higher values mean better image quality but bigger files.'),
-    );
+    ];
 
     // Settings tabs.
-    $form['imagemagick_settings'] = array(
+    $form['imagemagick_settings'] = [
       '#type' => 'vertical_tabs',
       '#tree' => FALSE,
-    );
+    ];
 
     // Graphics suite to use.
-    $form['suite'] = array(
+    $form['suite'] = [
       '#type' => 'details',
       '#title' => $this->t('Graphics package'),
       '#group' => 'imagemagick_settings',
-    );
+    ];
     $options = [
       'imagemagick' => $this->getPackageLabel('imagemagick'),
       'graphicsmagick' => $this->getPackageLabel('graphicsmagick'),
@@ -199,13 +199,13 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#description' => $this->t("Select the graphics package to use."),
     ];
     // Path to binaries.
-    $form['suite']['path_to_binaries'] = array(
+    $form['suite']['path_to_binaries'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Path to the package executables'),
       '#default_value' => $config->get('path_to_binaries'),
       '#required' => FALSE,
       '#description' => $this->t('If needed, the path to the package executables (<kbd>convert</kbd>, <kbd>identify</kbd>, <kbd>gm</kbd>, etc.), <b>including</b> the trailing slash/backslash. For example: <kbd>/usr/bin/</kbd> or <kbd>C:\Program Files\ImageMagick-6.3.4-Q16\</kbd>.'),
-    );
+    ];
     // Version information.
     $status = $this->execManager->checkPath($config->get('path_to_binaries'));
     if (empty($status['errors'])) {
@@ -288,29 +288,29 @@ class ImagemagickToolkit extends ImageToolkitBase {
       $this->t('Configure File Metadata Manager'),
       Url::fromRoute('file_mdm.settings')
     );
-    $form['exec']['metadata_caching'] = array(
+    $form['exec']['metadata_caching'] = [
       '#type' => 'item',
       '#title' => $this->t("Cache image metadata"),
       '#description' => $this->t("The File Metadata Manager module allows to cache image metadata. This reduces file I/O and <kbd>shell</kbd> calls. @configure.", [
         '@configure' => $configure_link->toString(),
       ]),
-    );
+    ];
     // Prepend arguments.
-    $form['exec']['prepend'] = array(
+    $form['exec']['prepend'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Prepend arguments'),
       '#default_value' => $config->get('prepend'),
       '#required' => FALSE,
       '#description' => $this->t('Use this to add e.g. <kbd>-limit</kbd> or <kbd>-debug</kbd> arguments in front of the others when executing the <kbd>identify</kbd> and <kbd>convert</kbd> commands.'),
-    );
+    ];
     // Locale.
-    $form['exec']['locale'] = array(
+    $form['exec']['locale'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Locale'),
       '#default_value' => $config->get('locale'),
       '#required' => FALSE,
       '#description' => $this->t("The locale to be used to prepare the command passed to executables. The default, <kbd>'en_US.UTF-8'</kbd>, should work in most cases. If that is not available on the server, enter another locale. 'Installed Locales' below provides a list of locales installed on the server."),
-    );
+    ];
     // Installed locales.
     $locales = $this->execManager->getInstalledLocales();
     $locales_info = implode('<br />', explode("\n", preg_replace('/\r/', '', Html::escape($locales))));
@@ -332,59 +332,59 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#description' => $this->t('Log a warning entry in the watchdog when the execution of a command returns with a non-zero code, but no error message.'),
     ];
     // Debugging.
-    $form['exec']['debug'] = array(
+    $form['exec']['debug'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Display debugging information'),
       '#default_value' => $config->get('debug'),
-      '#description' => $this->t('Shows commands and their output to users with the %permission permission.', array(
+      '#description' => $this->t('Shows commands and their output to users with the %permission permission.', [
         '%permission' => $this->t('Administer site configuration'),
-      )),
-    );
+      ]),
+    ];
 
     // Advanced image settings.
-    $form['advanced'] = array(
+    $form['advanced'] = [
       '#type' => 'details',
       '#title' => $this->t('Advanced image settings'),
       '#group' => 'imagemagick_settings',
-    );
-    $form['advanced']['density'] = array(
+    ];
+    $form['advanced']['density'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Change image resolution to 72 ppi'),
       '#default_value' => $config->get('advanced.density'),
       '#return_value' => 72,
-      '#description' => $this->t("Resamples the image <a href=':help-url'>density</a> to a resolution of 72 pixels per inch, the default for web images. Does not affect the pixel size or quality.", array(
+      '#description' => $this->t("Resamples the image <a href=':help-url'>density</a> to a resolution of 72 pixels per inch, the default for web images. Does not affect the pixel size or quality.", [
         ':help-url' => 'http://www.imagemagick.org/script/command-line-options.php#density',
-      )),
-    );
-    $form['advanced']['colorspace'] = array(
+      ]),
+    ];
+    $form['advanced']['colorspace'] = [
       '#type' => 'select',
       '#title' => $this->t('Convert colorspace'),
       '#default_value' => $config->get('advanced.colorspace'),
-      '#options' => array(
+      '#options' => [
         'RGB' => $this->t('RGB'),
         'sRGB' => $this->t('sRGB'),
         'GRAY' => $this->t('Gray'),
-      ),
+      ],
       '#empty_value' => 0,
       '#empty_option' => $this->t('- Original -'),
-      '#description' => $this->t("Converts processed images to the specified <a href=':help-url'>colorspace</a>. The color profile option overrides this setting.", array(
+      '#description' => $this->t("Converts processed images to the specified <a href=':help-url'>colorspace</a>. The color profile option overrides this setting.", [
         ':help-url' => 'http://www.imagemagick.org/script/command-line-options.php#colorspace',
-      )),
-      '#states' => array(
-        'enabled' => array(
-          ':input[name="imagemagick[advanced][profile]"]' => array('value' => ''),
-        ),
-      ),
-    );
-    $form['advanced']['profile'] = array(
+      ]),
+      '#states' => [
+        'enabled' => [
+          ':input[name="imagemagick[advanced][profile]"]' => ['value' => ''],
+        ],
+      ],
+    ];
+    $form['advanced']['profile'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Color profile path'),
       '#default_value' => $config->get('advanced.profile'),
-      '#description' => $this->t("The path to a <a href=':help-url'>color profile</a> file that all processed images will be converted to. Leave blank to disable. Use a <a href=':color-url'>sRGB profile</a> to correct the display of professional images and photography.", array(
+      '#description' => $this->t("The path to a <a href=':help-url'>color profile</a> file that all processed images will be converted to. Leave blank to disable. Use a <a href=':color-url'>sRGB profile</a> to correct the display of professional images and photography.", [
         ':help-url' => 'http://www.imagemagick.org/script/command-line-options.php#profile',
         ':color-url' => 'http://www.color.org/profiles.html',
-      )),
-    );
+      ]),
+    ];
 
     return $form;
   }

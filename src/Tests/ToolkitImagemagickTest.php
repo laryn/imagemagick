@@ -27,16 +27,16 @@ class ToolkitImagemagickTest extends WebTestBase {
   protected $testDirectory;
 
   // Colors that are used in testing.
-  protected $black       = array(0, 0, 0, 0);
-  protected $red         = array(255, 0, 0, 0);
-  protected $green       = array(0, 255, 0, 0);
-  protected $blue        = array(0, 0, 255, 0);
-  protected $yellow      = array(255, 255, 0, 0);
-  protected $white       = array(255, 255, 255, 0);
-  protected $transparent = array(0, 0, 0, 127);
+  protected $black       = [0, 0, 0, 0];
+  protected $red         = [255, 0, 0, 0];
+  protected $green       = [0, 255, 0, 0];
+  protected $blue        = [0, 0, 255, 0];
+  protected $yellow      = [255, 255, 0, 0];
+  protected $white       = [255, 255, 255, 0];
+  protected $transparent = [0, 0, 0, 127];
   // Used as rotate background colors.
-  protected $fuchsia            = array(255, 0, 255, 0);
-  protected $rotateTransparent = array(255, 255, 255, 127);
+  protected $fuchsia            = [255, 0, 255, 0];
+  protected $rotateTransparent = [255, 255, 255, 127];
 
   protected $width = 40;
   protected $height = 20;
@@ -62,9 +62,9 @@ class ToolkitImagemagickTest extends WebTestBase {
     parent::setUp();
 
     // Create an admin user.
-    $admin_user = $this->drupalCreateUser(array(
+    $admin_user = $this->drupalCreateUser([
       'administer site configuration',
-    ));
+    ]);
     $this->drupalLogin($admin_user);
 
     // Set the image factory.
@@ -83,7 +83,7 @@ class ToolkitImagemagickTest extends WebTestBase {
 
     $transparent_index = imagecolortransparent($toolkit->getResource());
     if ($color_index == $transparent_index) {
-      return array(0, 0, 0, 127);
+      return [0, 0, 0, 127];
     }
 
     return array_values(imagecolorsforindex($toolkit->getResource(), $color_index));
@@ -154,159 +154,159 @@ class ToolkitImagemagickTest extends WebTestBase {
 
     // Typically the corner colors will be unchanged. These colors are in the
     // order of top-left, top-right, bottom-right, bottom-left.
-    $default_corners = array($this->red, $this->green, $this->blue, $this->transparent);
+    $default_corners = [$this->red, $this->green, $this->blue, $this->transparent];
 
     // A list of files that will be tested.
-    $files = array(
+    $files = [
       'image-test.png',
       'image-test.gif',
       'image-test-no-transparency.gif',
       'image-test.jpg',
-    );
+    ];
 
     // Setup a list of tests to perform on each type.
-    $operations = array(
-      'resize' => array(
+    $operations = [
+      'resize' => [
         'function' => 'resize',
-        'arguments' => array('width' => 20, 'height' => 10),
+        'arguments' => ['width' => 20, 'height' => 10],
         'width' => 20,
         'height' => 10,
         'corners' => $default_corners,
         'tolerance' => 0,
-      ),
-      'scale_x' => array(
+      ],
+      'scale_x' => [
         'function' => 'scale',
-        'arguments' => array('width' => 20),
+        'arguments' => ['width' => 20],
         'width' => 20,
         'height' => 10,
         'corners' => $default_corners,
         'tolerance' => 0,
-      ),
-      'scale_y' => array(
+      ],
+      'scale_y' => [
         'function' => 'scale',
-        'arguments' => array('height' => 10),
+        'arguments' => ['height' => 10],
         'width' => 20,
         'height' => 10,
         'corners' => $default_corners,
         'tolerance' => 0,
-      ),
-      'upscale_x' => array(
+      ],
+      'upscale_x' => [
         'function' => 'scale',
-        'arguments' => array('width' => 80, 'upscale' => TRUE),
+        'arguments' => ['width' => 80, 'upscale' => TRUE],
         'width' => 80,
         'height' => 40,
         'corners' => $default_corners,
         'tolerance' => 0,
-      ),
-      'upscale_y' => array(
+      ],
+      'upscale_y' => [
         'function' => 'scale',
-        'arguments' => array('height' => 40, 'upscale' => TRUE),
+        'arguments' => ['height' => 40, 'upscale' => TRUE],
         'width' => 80,
         'height' => 40,
         'corners' => $default_corners,
         'tolerance' => 0,
-      ),
-      'crop' => array(
+      ],
+      'crop' => [
         'function' => 'crop',
-        'arguments' => array('x' => 12, 'y' => 4, 'width' => 16, 'height' => 12),
+        'arguments' => ['x' => 12, 'y' => 4, 'width' => 16, 'height' => 12],
         'width' => 16,
         'height' => 12,
         'corners' => array_fill(0, 4, $this->white),
         'tolerance' => 0,
-      ),
-      'scale_and_crop' => array(
+      ],
+      'scale_and_crop' => [
         'function' => 'scale_and_crop',
-        'arguments' => array('width' => 10, 'height' => 8),
+        'arguments' => ['width' => 10, 'height' => 8],
         'width' => 10,
         'height' => 8,
         'corners' => array_fill(0, 4, $this->black),
         'tolerance' => 100,
-      ),
-      'convert_jpg' => array(
+      ],
+      'convert_jpg' => [
         'function' => 'convert',
         'width' => 40,
         'height' => 20,
-        'arguments' => array('extension' => 'jpeg'),
+        'arguments' => ['extension' => 'jpeg'],
         'mimetype' => 'image/jpeg',
         'corners' => $default_corners,
         'tolerance' => 0,
-      ),
-      'convert_gif' => array(
+      ],
+      'convert_gif' => [
         'function' => 'convert',
         'width' => 40,
         'height' => 20,
-        'arguments' => array('extension' => 'gif'),
+        'arguments' => ['extension' => 'gif'],
         'mimetype' => 'image/gif',
         'corners' => $default_corners,
         'tolerance' => 15,
-      ),
-      'convert_png' => array(
+      ],
+      'convert_png' => [
         'function' => 'convert',
         'width' => 40,
         'height' => 20,
-        'arguments' => array('extension' => 'png'),
+        'arguments' => ['extension' => 'png'],
         'mimetype' => 'image/png',
         'corners' => $default_corners,
         'tolerance' => 5,
-      ),
-      'rotate_5' => array(
+      ],
+      'rotate_5' => [
         'function' => 'rotate',
         'arguments' => ['degrees' => 5, 'background' => '#FF00FF', 'resize_filter' => 'Box'],
         'width' => 41,
         'height' => 23,
         'corners' => array_fill(0, 4, $this->fuchsia),
         'tolerance' => 5,
-      ),
-      'rotate_minus_10' => array(
+      ],
+      'rotate_minus_10' => [
         'function' => 'rotate',
         'arguments' => ['degrees' => -10, 'background' => '#FF00FF', 'resize_filter' => 'Box'],
         'width' => 41,
         'height' => 26,
         'corners' => array_fill(0, 4, $this->fuchsia),
         'tolerance' => 15,
-      ),
-      'rotate_90' => array(
+      ],
+      'rotate_90' => [
         'function' => 'rotate',
-        'arguments' => array('degrees' => 90, 'background' => '#FF00FF'), // Fuchsia background.
+        'arguments' => ['degrees' => 90, 'background' => '#FF00FF'], // Fuchsia background.
         'width' => 20,
         'height' => 40,
-        'corners' => array($this->transparent, $this->red, $this->green, $this->blue),
+        'corners' => [$this->transparent, $this->red, $this->green, $this->blue],
         'tolerance' => 0,
-      ),
-      'rotate_transparent_5' => array(
+      ],
+      'rotate_transparent_5' => [
         'function' => 'rotate',
         'arguments' => ['degrees' => 5, 'resize_filter' => 'Box'],
         'width' => 41,
         'height' => 23,
         'corners' => array_fill(0, 4, $this->transparent),
         'tolerance' => 0,
-      ),
-      'rotate_transparent_90' => array(
+      ],
+      'rotate_transparent_90' => [
         'function' => 'rotate',
-        'arguments' => array('degrees' => 90),
+        'arguments' => ['degrees' => 90],
         'width' => 20,
         'height' => 40,
-        'corners' => array($this->transparent, $this->red, $this->green, $this->blue),
+        'corners' => [$this->transparent, $this->red, $this->green, $this->blue],
         'tolerance' => 0,
-      ),
-      'desaturate' => array(
+      ],
+      'desaturate' => [
         'function' => 'desaturate',
-        'arguments' => array(),
+        'arguments' => [],
         'height' => 20,
         'width' => 40,
         // Grayscale corners are a bit funky. Each of the corners are a shade of
         // gray. The values of these were determined simply by looking at the
         // final image to see what desaturated colors end up being.
-        'corners' => array(
-          array_fill(0, 3, 76) + array(3 => 0),
-          array_fill(0, 3, 149) + array(3 => 0),
-          array_fill(0, 3, 29) + array(3 => 0),
-          array_fill(0, 3, 225) + array(3 => 127),
-        ),
+        'corners' => [
+          array_fill(0, 3, 76) + [3 => 0],
+          array_fill(0, 3, 149) + [3 => 0],
+          array_fill(0, 3, 29) + [3 => 0],
+          array_fill(0, 3, 225) + [3 => 127],
+        ],
         // @todo tolerance here is too high. Check reasons.
         'tolerance' => 17000,
-      ),
-    );
+      ],
+    ];
 
     // Prepare a copy of test files.
     $this->drupalGetTestFiles('image');
@@ -422,7 +422,7 @@ class ToolkitImagemagickTest extends WebTestBase {
     }
 
     // Test creation of image from scratch, and saving to storage.
-    foreach (array(IMAGETYPE_PNG, IMAGETYPE_GIF, IMAGETYPE_JPEG) as $type) {
+    foreach ([IMAGETYPE_PNG, IMAGETYPE_GIF, IMAGETYPE_JPEG] as $type) {
       $image = $this->imageFactory->get();
       $image->createNew(50, 20, image_type_to_extension($type, FALSE), '#ffff00');
       $file = 'from_null' . image_type_to_extension($type);

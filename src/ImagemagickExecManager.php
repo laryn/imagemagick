@@ -100,10 +100,10 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
    * {@inheritdoc}
    */
   public function checkPath($path, $package = NULL) {
-    $status = array(
+    $status = [
       'output' => '',
-      'errors' => array(),
-    );
+      'errors' => [],
+    ];
 
     // Execute gm or convert based on settings.
     $package = $package ?: $this->getPackage();
@@ -115,21 +115,21 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
     if (!empty($path)) {
       // Check whether the given file exists.
       if (!is_file($executable)) {
-        $status['errors'][] = $this->t('The @suite executable %file does not exist.', array('@suite' => $this->getPackageLabel($package), '%file' => $executable));
+        $status['errors'][] = $this->t('The @suite executable %file does not exist.', ['@suite' => $this->getPackageLabel($package), '%file' => $executable]);
       }
       // If it exists, check whether we can execute it.
       elseif (!is_executable($executable)) {
-        $status['errors'][] = $this->t('The @suite file %file is not executable.', array('@suite' => $this->getPackageLabel($package), '%file' => $executable));
+        $status['errors'][] = $this->t('The @suite file %file is not executable.', ['@suite' => $this->getPackageLabel($package), '%file' => $executable]);
       }
     }
 
     // In case of errors, check for open_basedir restrictions.
     if ($status['errors'] && ($open_basedir = ini_get('open_basedir'))) {
-      $status['errors'][] = $this->t('The PHP <a href=":php-url">open_basedir</a> security restriction is set to %open-basedir, which may prevent to locate the @suite executable.', array(
+      $status['errors'][] = $this->t('The PHP <a href=":php-url">open_basedir</a> security restriction is set to %open-basedir, which may prevent to locate the @suite executable.', [
         '@suite' => $this->getPackageLabel($package),
         '%open-basedir' => $open_basedir,
         ':php-url' => 'http://php.net/manual/en/ini.core.php#ini.open-basedir',
-      ));
+      ]);
     }
 
     // Unless we had errors so far, try to invoke convert.

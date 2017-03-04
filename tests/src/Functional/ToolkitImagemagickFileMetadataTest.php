@@ -122,61 +122,61 @@ class ToolkitImagemagickFileMetadataTest extends BrowserTestBase {
     }
 
     // A list of files that will be tested.
-    $files = array(
-      'public://image-test.png' => array(
+    $files = [
+      'public://image-test.png' => [
         'width' => 40,
         'height' => 20,
         'frames' => 1,
         'mimetype' => 'image/png',
-      ),
-      'public://image-test.gif' => array(
+      ],
+      'public://image-test.gif' => [
         'width' => 40,
         'height' => 20,
         'frames' => 1,
         'mimetype' => 'image/gif',
-      ),
-      'dummy-remote://image-test.jpg' => array(
+      ],
+      'dummy-remote://image-test.jpg' => [
         'width' => 40,
         'height' => 20,
         'frames' => 1,
         'mimetype' => 'image/jpeg',
-      ),
-      'public://test-multi-frame.gif' => array(
+      ],
+      'public://test-multi-frame.gif' => [
         'skip_dimensions_check' => TRUE,
         'frames' => 13,
         'mimetype' => 'image/gif',
-      ),
-    );
+      ],
+    ];
 
     // Setup a list of tests to perform on each type.
-    $operations = array(
-      'resize' => array(
+    $operations = [
+      'resize' => [
         'function' => 'resize',
-        'arguments' => array('width' => 20, 'height' => 10),
+        'arguments' => ['width' => 20, 'height' => 10],
         'width' => 20,
         'height' => 10,
-      ),
-      'scale_x' => array(
+      ],
+      'scale_x' => [
         'function' => 'scale',
-        'arguments' => array('width' => 20),
+        'arguments' => ['width' => 20],
         'width' => 20,
         'height' => 10,
-      ),
+      ],
       // Fuchsia background.
-      'rotate_5' => array(
+      'rotate_5' => [
         'function' => 'rotate',
-        'arguments' => array('degrees' => 5, 'background' => '#FF00FF'),
+        'arguments' => ['degrees' => 5, 'background' => '#FF00FF'],
         'width' => 41,
         'height' => 23,
-      ),
-      'convert_jpg' => array(
+      ],
+      'convert_jpg' => [
         'function' => 'convert',
         'width' => 40,
         'height' => 20,
-        'arguments' => array('extension' => 'jpeg'),
+        'arguments' => ['extension' => 'jpeg'],
         'mimetype' => 'image/jpeg',
-      ),
-    );
+      ],
+    ];
 
     // The file metadata manager service.
     $fmdm = $this->container->get('file_metadata_manager');

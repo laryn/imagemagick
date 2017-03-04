@@ -19,11 +19,11 @@ class Convert extends ImagemagickImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function arguments() {
-    return array(
-      'extension' => array(
+    return [
+      'extension' => [
         'description' => 'The new extension of the converted image',
-      ),
-    );
+      ],
+    ];
   }
 
   /**

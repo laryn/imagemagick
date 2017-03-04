@@ -19,24 +19,24 @@ class Crop extends ImagemagickImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function arguments() {
-    return array(
-      'x' => array(
+    return [
+      'x' => [
         'description' => 'The starting x offset at which to start the crop, in pixels',
-      ),
-      'y' => array(
+      ],
+      'y' => [
         'description' => 'The starting y offset at which to start the crop, in pixels',
-      ),
-      'width' => array(
+      ],
+      'width' => [
         'description' => 'The width of the cropped area, in pixels',
         'required' => FALSE,
         'default' => NULL,
-      ),
-      'height' => array(
+      ],
+      'height' => [
         'description' => 'The height of the cropped area, in pixels',
         'required' => FALSE,
         'default' => NULL,
-      ),
-    );
+      ],
+    ];
   }
 
   /**
@@ -54,7 +54,7 @@ class Crop extends ImagemagickImageToolkitOperationBase {
     $arguments['width'] = empty($arguments['width']) ? $arguments['height'] / $aspect : $arguments['width'];
 
     // Assure integers for all arguments.
-    foreach (array('x', 'y', 'width', 'height') as $key) {
+    foreach (['x', 'y', 'width', 'height'] as $key) {
       $arguments[$key] = (int) round($arguments[$key]);
     }
 
