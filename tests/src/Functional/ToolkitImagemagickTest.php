@@ -1,16 +1,19 @@
 <?php
 
-namespace Drupal\imagemagick\Tests;
+namespace Drupal\Tests\imagemagick\Functional;
 
 use Drupal\Core\Image\ImageInterface;
-use Drupal\simpletest\WebTestBase;
+use Drupal\Tests\TestFileCreationTrait;
+use Drupal\Tests\BrowserTestBase;
 
 /**
  * Tests that core image manipulations work properly through Imagemagick.
  *
  * @group Imagemagick
  */
-class ToolkitImagemagickTest extends WebTestBase {
+class ToolkitImagemagickTest extends BrowserTestBase {
+
+  use TestFileCreationTrait;
 
   /**
    * The image factory service.
@@ -27,31 +30,39 @@ class ToolkitImagemagickTest extends WebTestBase {
   protected $testDirectory;
 
   // Colors that are used in testing.
-  protected $black       = [0, 0, 0, 0];
-  protected $red         = [255, 0, 0, 0];
-  protected $green       = [0, 255, 0, 0];
-  protected $blue        = [0, 0, 255, 0];
-  protected $yellow      = [255, 255, 0, 0];
-  protected $white       = [255, 255, 255, 0];
-  protected $transparent = [0, 0, 0, 127];
-  // Used as rotate background colors.
-  protected $fuchsia            = [255, 0, 255, 0];
+  // @codingStandardsIgnoreStart
+  protected $black             = [  0,   0,   0,   0];
+  protected $red               = [255,   0,   0,   0];
+  protected $green             = [  0, 255,   0,   0];
+  protected $blue              = [  0,   0, 255,   0];
+  protected $yellow            = [255, 255,   0,   0];
+  protected $fuchsia           = [255,   0, 255,   0];
+  protected $cyan              = [  0, 255, 255,   0];
+  protected $white             = [255, 255, 255,   0];
+  protected $grey              = [128, 128, 128,   0];
+  protected $transparent       = [  0,   0,   0, 127];
   protected $rotateTransparent = [255, 255, 255, 127];
 
   protected $width = 40;
   protected $height = 20;
+  // @codingStandardsIgnoreEnd
 
   /**
    * Modules to enable.
    *
    * @var array
    */
-  protected static $modules = ['system', 'simpletest', 'file_test', 'imagemagick'];
+  protected static $modules = [
+    'system',
+    'simpletest',
+    'file_test',
+    'imagemagick',
+  ];
 
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  public function setUp() {
     parent::setUp();
 
     // Create an admin user.
@@ -68,33 +79,52 @@ class ToolkitImagemagickTest extends WebTestBase {
   }
 
   /**
-   * Function for finding a pixel's RGBa values.
+   * Provides data for testManipulations.
+   *
+   * @return array[]
+   *   A simple array of simple arrays, each having the following elements:
+   *   - binaries to use for testing.
    */
-  protected function getPixelColor(ImageInterface $image, $x, $y) {
-    $toolkit = $image->getToolkit();
-    $color_index = imagecolorat($toolkit->getResource(), $x, $y);
-
-    $transparent_index = imagecolortransparent($toolkit->getResource());
-    if ($color_index == $transparent_index) {
-      return [0, 0, 0, 127];
-    }
-
-    return array_values(imagecolorsforindex($toolkit->getResource(), $color_index));
+  public function providerManipulationTest() {
+    return [
+      ['imagemagick'],
+      ['graphicsmagick'],
+    ];
   }
 
   /**
    * Test image toolkit operations.
+   *
+   * Since PHP can't visually check that our images have been manipulated
+   * properly, build a list of expected color values for each of the corners and
+   * the expected height and widths for the final images.
+   *
+   * @param string $binaries
+   *   The graphics package binaries to use for testing.
+   *
+   * @dataProvider providerManipulationTest
    */
-  public function testManipulations() {
+  public function testManipulations($binaries) {
     // Change the toolkit.
     \Drupal::configFactory()->getEditable('system.image')
       ->set('toolkit', 'imagemagick')
       ->save();
+
+    // Execute tests with selected binaries.
+    // The test can only be executed if binaries are available on the shell
+    // path.
     \Drupal::configFactory()->getEditable('imagemagick.settings')
       ->set('debug', TRUE)
-      ->set('binaries', 'imagemagick')
+      ->set('binaries', $binaries)
       ->set('quality', 100)
       ->save();
+    $status = \Drupal::service('image.toolkit.manager')->createInstance('imagemagick')->checkPath('');
+    if (!empty($status['errors'])) {
+      // Bots running automated test on d.o. do not have binaries installed,
+      // so the test will be skipped; it can be run locally where binaries are
+      // installed.
+      $this->markTestSkipped("Tests for '{$binaries}' cannot run because the binaries are not available on the shell path.");
+    }
 
     // Set the toolkit on the image factory.
     $this->imageFactory->setToolkitId('imagemagick');
@@ -102,52 +132,18 @@ class ToolkitImagemagickTest extends WebTestBase {
     // Test that the image factory is set to use the Imagemagick toolkit.
     $this->assertEqual($this->imageFactory->getToolkitId(), 'imagemagick', 'The image factory is set to use the \'imagemagick\' image toolkit.');
 
-    // Execute tests with ImageMagick.
-    // The test can only be executed if ImageMagick's 'convert' is available
-    // on the shell path.
-    $status = \Drupal::service('image.toolkit.manager')->createInstance('imagemagick')->checkPath('');
-    if (!empty($status['errors'])) {
-      // Bots running automated test on d.o. do not have ImageMagick
-      // installed, so there's no purpose to try and run this test there;
-      // it can be run locally where ImageMagick is installed.
-      debug('Tests for ImageMagick cannot run because the \'convert\' binary is not available on the shell path.');
-    }
-    else {
-      $this->doTestManipulations();
-    }
-
-    // Execute tests with GraphicsMagick.
-    // The test can only be executed if GraphicsMagick's 'gm' is available on
-    // the shell path.
-    \Drupal::configFactory()->getEditable('imagemagick.settings')
-      ->set('binaries', 'graphicsmagick')
-      ->save();
-    $status = \Drupal::service('image.toolkit.manager')->createInstance('imagemagick')->checkPath('');
-    if (!empty($status['errors'])) {
-      // Bots running automated test on d.o. do not have GraphicsMagick
-      // installed, so there's no purpose to try and run this test there;
-      // it can be run locally where GraphicsMagick is installed.
-      debug('Tests for GraphicsMagick cannot run because the \'gm\' binary is not available on the shell path.');
-    }
-    else {
-      $this->doTestManipulations();
-    }
-  }
-
-  /**
-   * Test image toolkit operations with selected package.
-   *
-   * Since PHP can't visually check that our images have been manipulated
-   * properly, build a list of expected color values for each of the corners and
-   * the expected height and widths for the final images.
-   */
-  public function doTestManipulations() {
+    // Prepare directory.
     file_unmanaged_delete_recursive($this->testDirectory);
     file_prepare_directory($this->testDirectory, FILE_CREATE_DIRECTORY);
 
     // Typically the corner colors will be unchanged. These colors are in the
     // order of top-left, top-right, bottom-right, bottom-left.
-    $default_corners = [$this->red, $this->green, $this->blue, $this->transparent];
+    $default_corners = [
+      $this->red,
+      $this->green,
+      $this->blue,
+      $this->transparent,
+    ];
 
     // A list of files that will be tested.
     $files = [
@@ -244,7 +240,11 @@ class ToolkitImagemagickTest extends WebTestBase {
       ],
       'rotate_5' => [
         'function' => 'rotate',
-        'arguments' => ['degrees' => 5, 'background' => '#FF00FF', 'resize_filter' => 'Box'],
+        'arguments' => [
+          'degrees' => 5,
+          'background' => '#FF00FF',
+          'resize_filter' => 'Box',
+        ],
         'width' => 41,
         'height' => 23,
         'corners' => array_fill(0, 4, $this->fuchsia),
@@ -252,7 +252,11 @@ class ToolkitImagemagickTest extends WebTestBase {
       ],
       'rotate_minus_10' => [
         'function' => 'rotate',
-        'arguments' => ['degrees' => -10, 'background' => '#FF00FF', 'resize_filter' => 'Box'],
+        'arguments' => [
+          'degrees' => -10,
+          'background' => '#FF00FF',
+          'resize_filter' => 'Box',
+        ],
         'width' => 41,
         'height' => 26,
         'corners' => array_fill(0, 4, $this->fuchsia),
@@ -260,7 +264,7 @@ class ToolkitImagemagickTest extends WebTestBase {
       ],
       'rotate_90' => [
         'function' => 'rotate',
-        'arguments' => ['degrees' => 90, 'background' => '#FF00FF'], // Fuchsia background.
+        'arguments' => ['degrees' => 90, 'background' => '#FF00FF'],
         'width' => 20,
         'height' => 40,
         'corners' => [$this->transparent, $this->red, $this->green, $this->blue],
@@ -302,7 +306,7 @@ class ToolkitImagemagickTest extends WebTestBase {
     ];
 
     // Prepare a copy of test files.
-    $this->drupalGetTestFiles('image');
+    $this->getTestFiles('image');
 
     foreach ($files as $file) {
       foreach ($operations as $op => $values) {
@@ -330,7 +334,6 @@ class ToolkitImagemagickTest extends WebTestBase {
         if ($package === 'graphicsmagick') {
           // @todo Issues with crop on GIF files, investigate.
           if (in_array($file, ['image-test.gif', 'image-test-no-transparency.gif']) && in_array($op, ['crop', 'scale_and_crop'])) {
-            debug("Skip GD check on $file, operation $op.");
             continue;
           }
         }
@@ -407,7 +410,6 @@ class ToolkitImagemagickTest extends WebTestBase {
             }
             $color = $this->getPixelColor($image, $x, $y);
             $correct_colors = $this->colorsAreClose($color, $corner, $values['tolerance']);
-            $this->assertTrue($correct_colors, "Image '$file' object after '$op' action has the correct color placement at corner $key.");
           }
         }
       }
@@ -453,7 +455,6 @@ class ToolkitImagemagickTest extends WebTestBase {
     $this->assertTrue($image->isValid(), 'CreateNew with valid arguments validates the Image.');
 
     // Test saving image files with filenames having non-ascii characters.
-
     $file_names = [
       'greek εικόνα δοκιμής.png',
       'russian Тестовое изображение.png',
@@ -478,7 +479,6 @@ class ToolkitImagemagickTest extends WebTestBase {
     }
 
     // Test handling a file stored through a remote stream wrapper.
-
     $image = $this->imageFactory->get('dummy-remote://image-test.png');
     // Source file should be equal to the copied local temp source file.
     $this->assertEqual(filesize('dummy-remote://image-test.png'), filesize($image->getToolkit()->getSourceLocalPath()));
@@ -491,8 +491,6 @@ class ToolkitImagemagickTest extends WebTestBase {
     $this->assertIdentical('', $image->getToolkit()->getDestinationLocalPath());
 
     // Test retrieval of EXIF information.
-
-    // The image files that will be tested.
     $image_files = [
       [
         'path' => drupal_get_path('module', 'imagemagick') . '/misc/test-exif.jpeg',
@@ -516,7 +514,7 @@ class ToolkitImagemagickTest extends WebTestBase {
       ],
     ];
 
-    foreach($image_files as $image_file) {
+    foreach ($image_files as $image_file) {
       // Get image using 'identify'.
       \Drupal::configFactory()->getEditable('imagemagick.settings')
         ->set('use_identify', TRUE)
@@ -533,8 +531,6 @@ class ToolkitImagemagickTest extends WebTestBase {
     }
 
     // Test multi-frame GIF image.
-
-    // The image files that will be tested.
     $image_files = [
       [
         'source' => drupal_get_path('module', 'imagemagick') . '/misc/test-multi-frame.gif',
@@ -549,11 +545,11 @@ class ToolkitImagemagickTest extends WebTestBase {
       ],
     ];
 
-    foreach($image_files as $image_file) {
-      // Get image using 'identify'.
-      \Drupal::configFactory()->getEditable('imagemagick.settings')
-        ->set('use_identify', TRUE)
-        ->save();
+    // Get images using 'identify'.
+    \Drupal::configFactory()->getEditable('imagemagick.settings')
+      ->set('use_identify', TRUE)
+      ->save();
+    foreach ($image_files as $image_file) {
       $image = $this->imageFactory->get($image_file['source']);
       $this->assertIdentical($image_file['width'], $image->getWidth());
       $this->assertIdentical($image_file['height'], $image->getHeight());
@@ -619,12 +615,12 @@ class ToolkitImagemagickTest extends WebTestBase {
 
     // Enable TIFF.
     $image_formats = $config->get('image_formats');
-    $image_formats['TIFF']['enabled'] = true;
+    $image_formats['TIFF']['enabled'] = TRUE;
     $config->set('image_formats', $image_formats)->save();
     $this->assertEqual('gif jpe jpeg jpg png tif tiff', implode(' ', $this->imageFactory->getSupportedExtensions()));
 
     // Disable PNG.
-    $image_formats['PNG']['enabled'] = false;
+    $image_formats['PNG']['enabled'] = FALSE;
     $config->set('image_formats', $image_formats)->save();
     $this->assertEqual('gif jpe jpeg jpg tif tiff', implode(' ', $this->imageFactory->getSupportedExtensions()));
 
@@ -638,31 +634,43 @@ class ToolkitImagemagickTest extends WebTestBase {
   }
 
   /**
+   * Function for finding a pixel's RGBa values.
+   */
+  protected function getPixelColor(ImageInterface $image, $x, $y) {
+    $toolkit = $image->getToolkit();
+    $color_index = imagecolorat($toolkit->getResource(), $x, $y);
+
+    $transparent_index = imagecolortransparent($toolkit->getResource());
+    if ($color_index == $transparent_index) {
+      return array(0, 0, 0, 127);
+    }
+
+    return array_values(imagecolorsforindex($toolkit->getResource(), $color_index));
+  }
+
+  /**
    * Function to compare two colors by RGBa, within a tolerance.
    *
    * Very basic, just compares the sum of the squared differences for each of
-   * the R, G, B, a components of two colors against a 'tolerance' value.
+   * the R, G, B, A components of two colors against a 'tolerance' value.
    *
-   * @param int[] $color_a
-   *   An RGBa array.
-   * @param int[] $color_b
-   *   An RGBa array.
+   * @param int[] $actual
+   *   The actual RGBA array.
+   * @param int[] $expected
+   *   The expected RGBA array.
    * @param int $tolerance
-   *   The accepteable difference between the colors.
+   *   The acceptable difference between the colors.
    *
    * @return bool
    *   TRUE if the colors differences are within tolerance, FALSE otherwise.
    */
-  protected function colorsAreClose(array $color_a, array $color_b, $tolerance) {
+  protected function colorsAreClose(array $actual, array $expected, $tolerance) {
     // Fully transparent colors are equal, regardless of RGB.
-    if ($color_a[3] == 127 && $color_b[3] == 127) {
+    if ($actual[3] == 127 && $expected[3] == 127) {
       return TRUE;
     }
-    $distance = pow(($color_a[0] - $color_b[0]), 2) + pow(($color_a[1] - $color_b[1]), 2) + pow(($color_a[2] - $color_b[2]), 2) + pow(($color_a[3] - $color_b[3]), 2);
-    if ($distance > $tolerance) {
-      debug("Color A: {" . implode(',', $color_a) . "}, Color B: {" . implode(',', $color_b) . "}, Distance: " . $distance . ", Tolerance: " . $tolerance);
-      return FALSE;
-    }
+    $distance = pow(($actual[0] - $expected[0]), 2) + pow(($actual[1] - $expected[1]), 2) + pow(($actual[2] - $expected[2]), 2) + pow(($actual[3] - $expected[3]), 2);
+    $this->assertLessThanOrEqual($tolerance, $distance, "Actual: {" . implode(',', $actual) . "}, Expected: {" . implode(',', $expected) . "}, Distance: " . $distance . ", Tolerance: " . $tolerance);
     return TRUE;
   }
 
