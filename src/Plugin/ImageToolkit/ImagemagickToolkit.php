@@ -1296,19 +1296,55 @@ class ImagemagickToolkit extends ImageToolkitBase {
       $return_code = FALSE;
     }
 
-    // Display debugging information to authorized users.
-    $current_user = \Drupal::currentUser();
-    if ($this->configFactory->get('imagemagick.settings')->get('debug') && $current_user->hasPermission('administer site configuration')) {
-      debug($command_line, $this->t('@suite command', ['@suite' => $this->getPackageLabel($id)]), TRUE);
+    // Process debugging information if required.
+    if ($this->configFactory->get('imagemagick.settings')->get('debug')) {
+      $this->debugMessage('@suite command: <pre>@raw</pre>', [
+        '@suite' => $this->getPackageLabel($id),
+        '@raw' => print_r($command_line, TRUE),
+      ]);
       if ($output !== '') {
-        debug($output, $this->t('@suite output', ['@suite' => $this->getPackageLabel($id)]), TRUE);
+        $this->debugMessage('@suite output: <pre>@raw</pre>', [
+          '@suite' => $this->getPackageLabel($id),
+          '@raw' => print_r($output, TRUE),
+        ]);
       }
       if ($error !== '') {
-        debug($error, $this->t('@suite error @return_code', ['@suite' => $this->getPackageLabel($id), '@return_code' => $return_code]), TRUE);
+        $this->debugMessage('@suite error @return_code: <pre>@raw</pre>', [
+          '@suite' => $this->getPackageLabel($id),
+          '@return_code' => $return_code,
+          '@raw' => print_r($error, TRUE),
+        ]);
       }
     }
 
     return $return_code;
+  }
+
+  /**
+   * Logs a debug message, and shows it on the screen for authorized users.
+   *
+   * @param string $message
+   *   The debug message.
+   * @param string[] $context
+   *   Context information.
+   */
+  public function debugMessage($message, array $context) {
+    $this->logger->debug($message, $context);
+    if (\Drupal::currentUser()->hasPermission('administer site configuration')) {
+      // Strips raw text longer than 10 lines to optimize displaying.
+      if (isset($context['@raw'])) {
+        $raw = explode("\n", $context['@raw']);
+        if (count($raw) > 10) {
+          $tmp = [];
+          for ($i = 0; $i < 9; $i++) {
+            $tmp[] = $raw[$i];
+          }
+          $tmp[] = (string) $this->t('[Further text stripped. The watchdog log has the full text.]');
+          $context['@raw'] = implode("\n", $tmp);
+        }
+      }
+      drupal_set_message($this->t($message, $context), 'status', TRUE);
+    }
   }
 
   /**
