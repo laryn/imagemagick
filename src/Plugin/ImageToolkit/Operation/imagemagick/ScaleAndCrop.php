@@ -19,19 +19,19 @@ class ScaleAndCrop extends ImagemagickImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function arguments() {
-    return array(
-      'width' => array(
+    return [
+      'width' => [
         'description' => 'The target width, in pixels',
-      ),
-      'height' => array(
+      ],
+      'height' => [
         'description' => 'The target height, in pixels',
-      ),
+      ],
       'filter' => [
         'description' => 'An optional filter to apply for the resize',
         'required' => FALSE,
         'default' => '',
       ],
-    );
+    ];
   }
 
   /**
@@ -45,11 +45,11 @@ class ScaleAndCrop extends ImagemagickImageToolkitOperationBase {
 
     $arguments['x'] = (int) round(($actual_width * $scale_factor - $arguments['width']) / 2);
     $arguments['y'] = (int) round(($actual_height * $scale_factor - $arguments['height']) / 2);
-    $arguments['resize'] = array(
+    $arguments['resize'] = [
       'width' => (int) round($actual_width * $scale_factor),
       'height' => (int) round($actual_height * $scale_factor),
       'filter' => $arguments['filter'],
-    );
+    ];
 
     // Fail when width or height are 0 or negative.
     if ($arguments['width'] <= 0) {
@@ -65,7 +65,7 @@ class ScaleAndCrop extends ImagemagickImageToolkitOperationBase {
   /**
    * {@inheritdoc}
    */
-  protected function execute(array $arguments = array()) {
+  protected function execute(array $arguments = []) {
     return $this->getToolkit()->apply('resize', $arguments['resize'])
         && $this->getToolkit()->apply('crop', $arguments);
   }

@@ -19,19 +19,19 @@ class Resize extends ImagemagickImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function arguments() {
-    return array(
-      'width' => array(
+    return [
+      'width' => [
         'description' => 'The new width of the resized image, in pixels',
-      ),
-      'height' => array(
+      ],
+      'height' => [
         'description' => 'The new height of the resized image, in pixels',
-      ),
+      ],
       'filter' => [
         'description' => 'An optional filter to apply for the resize',
         'required' => FALSE,
         'default' => '',
       ],
-    );
+    ];
   }
 
   /**
@@ -56,7 +56,7 @@ class Resize extends ImagemagickImageToolkitOperationBase {
   /**
    * {@inheritdoc}
    */
-  protected function execute(array $arguments = array()) {
+  protected function execute(array $arguments = []) {
     if (!empty($arguments['filter'])) {
       $this->getToolkit()->addArgument('-filter ' . $arguments['filter']);
     }

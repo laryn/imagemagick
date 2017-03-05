@@ -60,7 +60,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *
    * @var string[]
    */
-  protected $arguments = array();
+  protected $arguments = [];
 
   /**
    * The width of the image.
@@ -178,13 +178,13 @@ class ImagemagickToolkit extends ImageToolkitBase {
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
     $config = $this->configFactory->getEditable('imagemagick.settings');
 
-    $form['imagemagick'] = array(
+    $form['imagemagick'] = [
       '#markup' => $this->t("<a href=':im-url'>ImageMagick</a> and <a href=':gm-url'>GraphicsMagick</a> are stand-alone packages for image manipulation. At least one of them must be installed on the server, and you need to know where it is located. Consult your server administrator or hosting provider for details.", [
         ':im-url' => 'http://www.imagemagick.org',
         ':gm-url' => 'http://www.graphicsmagick.org',
       ]),
-    );
-    $form['quality'] = array(
+    ];
+    $form['quality'] = [
       '#type' => 'number',
       '#title' => $this->t('Image quality'),
       '#size' => 10,
@@ -194,15 +194,15 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#default_value' => $config->get('quality'),
       '#field_suffix' => '%',
       '#description' => $this->t('Define the image quality of processed images. Ranges from 0 to 100. Higher values mean better image quality but bigger files.'),
-    );
+    ];
 
     // Graphics suite to use.
-    $form['suite'] = array(
+    $form['suite'] = [
       '#type' => 'details',
       '#open' => TRUE,
       '#collapsible' => FALSE,
       '#title' => $this->t('Graphics package'),
-    );
+    ];
     $options = [
       'imagemagick' => $this->getPackageLabel('imagemagick'),
       'graphicsmagick' => $this->getPackageLabel('graphicsmagick'),
@@ -216,13 +216,13 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#description' => $this->t("Select the graphics package to use."),
     ];
     // Path to binaries.
-    $form['suite']['path_to_binaries'] = array(
+    $form['suite']['path_to_binaries'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Path to the package executables'),
       '#default_value' => $config->get('path_to_binaries'),
       '#required' => FALSE,
       '#description' => $this->t('If needed, the path to the package executables (<kbd>convert</kbd>, <kbd>identify</kbd>, <kbd>gm</kbd>, etc.), <b>including</b> the trailing slash/backslash. For example: <kbd>/usr/bin/</kbd> or <kbd>C:\Program Files\ImageMagick-6.3.4-Q16\</kbd>.'),
-    );
+    ];
     // Version information.
     $status = $this->checkPath($config->get('path_to_binaries'));
     if (empty($status['errors'])) {
@@ -247,12 +247,12 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#title' => $this->t('Image formats'),
     ];
     // Use 'identify' command.
-    $form['formats']['use_identify'] = array(
+    $form['formats']['use_identify'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Use "identify"'),
       '#default_value' => $config->get('use_identify'),
       '#description' => $this->t('Use the <kbd>identify</kbd> command to parse image files to determine image format and dimensions. If not selected, the PHP <kbd>getimagesize</kbd> function will be used, BUT this will limit the image formats supported by the toolkit.'),
-    );
+    ];
     // Image formats enabled in the toolkit.
     $form['formats']['enabled'] = [
       '#type' => 'item',
@@ -302,21 +302,21 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#title' => $this->t('Execution options'),
     ];
     // Prepend arguments.
-    $form['exec']['prepend'] = array(
+    $form['exec']['prepend'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Prepend arguments'),
       '#default_value' => $config->get('prepend'),
       '#required' => FALSE,
       '#description' => $this->t('Use this to add e.g. <kbd>-limit</kbd> or <kbd>-debug</kbd> arguments in front of the others when executing the <kbd>identify</kbd> and <kbd>convert</kbd> commands.'),
-    );
+    ];
     // Locale.
-    $form['exec']['locale'] = array(
+    $form['exec']['locale'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Locale'),
       '#default_value' => $config->get('locale'),
       '#required' => FALSE,
       '#description' => $this->t("The locale to be used to prepare the command passed to executables. The default, <kbd>'en_US.UTF-8'</kbd>, should work in most cases. If that is not available on the server, enter another locale. On *nix servers, type <kbd>'locale -a'</kbd> in a shell window to see a list of all locales available."),
-    );
+    ];
     // Log warnings.
     $form['exec']['log_warnings'] = [
       '#type' => 'checkbox',
@@ -325,60 +325,60 @@ class ImagemagickToolkit extends ImageToolkitBase {
       '#description' => $this->t('Log a warning entry in the watchdog when the execution of a command returns with a non-zero code, but no error message.'),
     ];
     // Debugging.
-    $form['exec']['debug'] = array(
+    $form['exec']['debug'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Display debugging information'),
       '#default_value' => $config->get('debug'),
-      '#description' => $this->t('Shows commands and their output to users with the %permission permission.', array(
+      '#description' => $this->t('Shows commands and their output to users with the %permission permission.', [
         '%permission' => $this->t('Administer site configuration'),
-      )),
-    );
+      ]),
+    ];
 
     // Advanced image settings.
-    $form['advanced'] = array(
+    $form['advanced'] = [
       '#type' => 'details',
       '#collapsible' => TRUE,
       '#collapsed' => TRUE,
       '#title' => $this->t('Advanced image settings'),
-    );
-    $form['advanced']['density'] = array(
+    ];
+    $form['advanced']['density'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Change image resolution to 72 ppi'),
       '#default_value' => $config->get('advanced.density'),
       '#return_value' => 72,
-      '#description' => $this->t("Resamples the image <a href=':help-url'>density</a> to a resolution of 72 pixels per inch, the default for web images. Does not affect the pixel size or quality.", array(
+      '#description' => $this->t("Resamples the image <a href=':help-url'>density</a> to a resolution of 72 pixels per inch, the default for web images. Does not affect the pixel size or quality.", [
         ':help-url' => 'http://www.imagemagick.org/script/command-line-options.php#density',
-      )),
-    );
-    $form['advanced']['colorspace'] = array(
+      ]),
+    ];
+    $form['advanced']['colorspace'] = [
       '#type' => 'select',
       '#title' => $this->t('Convert colorspace'),
       '#default_value' => $config->get('advanced.colorspace'),
-      '#options' => array(
+      '#options' => [
         'RGB' => $this->t('RGB'),
         'sRGB' => $this->t('sRGB'),
         'GRAY' => $this->t('Gray'),
-      ),
+      ],
       '#empty_value' => 0,
       '#empty_option' => $this->t('- Original -'),
-      '#description' => $this->t("Converts processed images to the specified <a href=':help-url'>colorspace</a>. The color profile option overrides this setting.", array(
+      '#description' => $this->t("Converts processed images to the specified <a href=':help-url'>colorspace</a>. The color profile option overrides this setting.", [
         ':help-url' => 'http://www.imagemagick.org/script/command-line-options.php#colorspace',
-      )),
-      '#states' => array(
-        'enabled' => array(
-          ':input[name="imagemagick[advanced][profile]"]' => array('value' => ''),
-        ),
-      ),
-    );
-    $form['advanced']['profile'] = array(
+      ]),
+      '#states' => [
+        'enabled' => [
+          ':input[name="imagemagick[advanced][profile]"]' => ['value' => ''],
+        ],
+      ],
+    ];
+    $form['advanced']['profile'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Color profile path'),
       '#default_value' => $config->get('advanced.profile'),
-      '#description' => $this->t("The path to a <a href=':help-url'>color profile</a> file that all processed images will be converted to. Leave blank to disable. Use a <a href=':color-url'>sRGB profile</a> to correct the display of professional images and photography.", array(
+      '#description' => $this->t("The path to a <a href=':help-url'>color profile</a> file that all processed images will be converted to. Leave blank to disable. Use a <a href=':color-url'>sRGB profile</a> to correct the display of professional images and photography.", [
         ':help-url' => 'http://www.imagemagick.org/script/command-line-options.php#profile',
         ':color-url' => 'http://www.color.org/profiles.html',
-      )),
-    );
+      ]),
+    ];
 
     return $form;
   }
@@ -439,10 +439,10 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *     not be found or executed.
    */
   public function checkPath($path, $package = NULL) {
-    $status = array(
+    $status = [
       'output' => '',
-      'errors' => array(),
-    );
+      'errors' => [],
+    ];
 
     // Execute gm or convert based on settings.
     $package = $package ?: $this->getPackage();
@@ -454,21 +454,21 @@ class ImagemagickToolkit extends ImageToolkitBase {
     if (!empty($path)) {
       // Check whether the given file exists.
       if (!is_file($executable)) {
-        $status['errors'][] = $this->t('The @suite executable %file does not exist.', array('@suite' => $this->getPackageLabel($package), '%file' => $executable));
+        $status['errors'][] = $this->t('The @suite executable %file does not exist.', ['@suite' => $this->getPackageLabel($package), '%file' => $executable]);
       }
       // If it exists, check whether we can execute it.
       elseif (!is_executable($executable)) {
-        $status['errors'][] = $this->t('The @suite file %file is not executable.', array('@suite' => $this->getPackageLabel($package), '%file' => $executable));
+        $status['errors'][] = $this->t('The @suite file %file is not executable.', ['@suite' => $this->getPackageLabel($package), '%file' => $executable]);
       }
     }
 
     // In case of errors, check for open_basedir restrictions.
     if ($status['errors'] && ($open_basedir = ini_get('open_basedir'))) {
-      $status['errors'][] = $this->t('The PHP <a href=":php-url">open_basedir</a> security restriction is set to %open-basedir, which may prevent to locate the @suite executable.', array(
+      $status['errors'][] = $this->t('The PHP <a href=":php-url">open_basedir</a> security restriction is set to %open-basedir, which may prevent to locate the @suite executable.', [
         '@suite' => $this->getPackageLabel($package),
         '%open-basedir' => $open_basedir,
         ':php-url' => 'http://php.net/manual/en/ini.core.php#ini.open-basedir',
-      ));
+      ]);
     }
 
     // Unless we had errors so far, try to invoke convert.
@@ -519,18 +519,18 @@ class ImagemagickToolkit extends ImageToolkitBase {
    */
   public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
     $this->configFactory->getEditable('imagemagick.settings')
-      ->set('quality', $form_state->getValue(array('imagemagick', 'quality')))
-      ->set('binaries', $form_state->getValue(array('imagemagick', 'suite', 'binaries')))
-      ->set('path_to_binaries', $form_state->getValue(array('imagemagick', 'suite', 'path_to_binaries')))
-      ->set('use_identify', $form_state->getValue(array('imagemagick', 'formats', 'use_identify')))
+      ->set('quality', $form_state->getValue(['imagemagick', 'quality']))
+      ->set('binaries', $form_state->getValue(['imagemagick', 'suite', 'binaries']))
+      ->set('path_to_binaries', $form_state->getValue(['imagemagick', 'suite', 'path_to_binaries']))
+      ->set('use_identify', $form_state->getValue(['imagemagick', 'formats', 'use_identify']))
       ->set('image_formats', Yaml::decode($form_state->getValue(['imagemagick', 'formats', 'mapping', 'image_formats'])))
-      ->set('prepend', $form_state->getValue(array('imagemagick', 'exec', 'prepend')))
+      ->set('prepend', $form_state->getValue(['imagemagick', 'exec', 'prepend']))
       ->set('locale', $form_state->getValue(['imagemagick', 'exec', 'locale']))
       ->set('log_warnings', (bool) $form_state->getValue(['imagemagick', 'exec', 'log_warnings']))
-      ->set('debug', $form_state->getValue(array('imagemagick', 'exec', 'debug')))
-      ->set('advanced.density', $form_state->getValue(array('imagemagick', 'advanced', 'density')))
-      ->set('advanced.colorspace', $form_state->getValue(array('imagemagick', 'advanced', 'colorspace')))
-      ->set('advanced.profile', $form_state->getValue(array('imagemagick', 'advanced', 'profile')))
+      ->set('debug', $form_state->getValue(['imagemagick', 'exec', 'debug']))
+      ->set('advanced.density', $form_state->getValue(['imagemagick', 'advanced', 'density']))
+      ->set('advanced.colorspace', $form_state->getValue(['imagemagick', 'advanced', 'colorspace']))
+      ->set('advanced.profile', $form_state->getValue(['imagemagick', 'advanced', 'profile']))
       ->save();
   }
 
@@ -799,7 +799,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    *   The array of command line arguments.
    */
   public function getArguments() {
-    return $this->arguments ?: array();
+    return $this->arguments ?: [];
   }
 
   /**
@@ -868,7 +868,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
    * @return $this
    */
   public function resetArguments() {
-    $this->arguments = array();
+    $this->arguments = [];
     return $this;
   }
 

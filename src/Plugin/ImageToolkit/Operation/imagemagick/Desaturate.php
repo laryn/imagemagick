@@ -20,7 +20,7 @@ class Desaturate extends ImagemagickImageToolkitOperationBase {
    */
   protected function arguments() {
     // This operation does not use any parameters.
-    return array();
+    return [];
   }
 
   /**

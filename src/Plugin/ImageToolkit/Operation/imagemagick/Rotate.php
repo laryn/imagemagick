@@ -22,21 +22,21 @@ class Rotate extends ImagemagickImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function arguments() {
-    return array(
-      'degrees' => array(
+    return [
+      'degrees' => [
         'description' => 'The number of (clockwise) degrees to rotate the image',
-      ),
-      'background' => array(
+      ],
+      'background' => [
         'description' => "A string specifying the hexadecimal color code to use as background for the uncovered area of the image after the rotation. E.g. '#000000' for black, '#ff00ff' for magenta, and '#ffffff' for white. For images that support transparency, this will default to transparent white",
         'required' => FALSE,
         'default' => NULL,
-      ),
+      ],
       'resize_filter' => [
         'description' => 'An optional filter to apply for the resize',
         'required' => FALSE,
         'default' => '',
       ],
-    );
+    ];
   }
 
   /**
