@@ -2,6 +2,7 @@
 
 namespace Drupal\imagemagick;
 
+use Drupal\Component\Utility\Timer;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
@@ -278,6 +279,7 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
       2 => ['pipe', 'w'],
     ];
 
+    Timer::start('imagemagick:runOsShell');
     if ($h = proc_open($command_line, $descriptors, $pipes, $this->appRoot)) {
       $output = '';
       while (!feof($pipes[1])) {
@@ -297,12 +299,14 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
     else {
       $return_code = FALSE;
     }
+    $execution_time = Timer::stop('imagemagick:runOsShell')['time'];
 
     // Process debugging information if required.
     if ($this->configFactory->get('imagemagick.settings')->get('debug')) {
-      $this->debugMessage('@suite command: <pre>@raw</pre>', [
+      $this->debugMessage('@suite command: <pre>@raw</pre> executed in @execution_timems', [
         '@suite' => $this->getPackageLabel($id),
         '@raw' => print_r($command_line, TRUE),
+        '@execution_time' => $execution_time,
       ]);
       if ($output !== '') {
         $this->debugMessage('@suite output: <pre>@raw</pre>', [
