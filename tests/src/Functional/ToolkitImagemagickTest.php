@@ -687,4 +687,60 @@ class ToolkitImagemagickTest extends BrowserTestBase {
     return TRUE;
   }
 
+  /**
+   * Test internal arguments.
+   *
+   * Make sure that arguments used internally within the toolkit do not leak
+   * in the command line passed to binaries.
+   */
+  public function testInternalArguments() {
+    // Change the toolkit.
+    \Drupal::configFactory()->getEditable('system.image')
+      ->set('toolkit', 'imagemagick')
+      ->save();
+
+    // Execute tests with selected binaries.
+    // The test can only be executed if binaries are available on the shell
+    // path.
+    \Drupal::configFactory()->getEditable('imagemagick.settings')
+      ->set('debug', TRUE)
+      ->set('binaries', 'imagemagick')
+      ->set('quality', 100)
+      ->save();
+    $status = \Drupal::service('image.toolkit.manager')->createInstance('imagemagick')->checkPath('');
+    if (!empty($status['errors'])) {
+      // Bots running automated test on d.o. do not have binaries installed,
+      // so the test will be skipped; it can be run locally where binaries are
+      // installed.
+      $this->markTestSkipped("Tests for 'imagemagick' cannot run because the binaries are not available on the shell path.");
+    }
+
+    // Set the toolkit on the image factory.
+    $this->imageFactory->setToolkitId('imagemagick');
+
+    // Prepare directory.
+    file_unmanaged_delete_recursive($this->testDirectory);
+    file_prepare_directory($this->testDirectory, FILE_CREATE_DIRECTORY);
+
+    // Prepare a copy of test files.
+    $this->getTestFiles('image');
+
+    // Setup a list of tests arguments.
+    $arguments = [
+      "-resize 100x75!",
+      ">!>INTERNAL",
+      "-quality 75",
+    ];
+
+    $image_uri = "public://image-test.png";
+    $image = $this->imageFactory->get($image_uri);
+    if (!$image->isValid()) {
+      $this->fail("Could not load image $file.");
+    }
+    foreach ($arguments as $argument) {
+      $image->getToolkit()->addArgument($argument);
+    }
+    $this->assertSame("-resize 100x75! -quality 75", $image->getToolkit()->getStringForBinary());
+  }
+
 }

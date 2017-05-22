@@ -786,6 +786,18 @@ class ImagemagickToolkit extends ImageToolkitBase {
   }
 
   /**
+   * Gets the command line arguments string for the binary.
+   *
+   * Removes any argument used internally within the toolkit.
+   *
+   * @return string
+   *   The string of command line arguments.
+   */
+  public function getStringForBinary() {
+    return $this->arguments->getStringForBinary();
+  }
+
+  /**
    * Adds a command line argument.
    *
    * @param string $arg

@@ -8,6 +8,11 @@ namespace Drupal\imagemagick;
 class ImagemagickExecArguments {
 
   /**
+   * An identifier to be used for arguments internal to the toolkit.
+   */
+  const INTERNAL_ARGUMENT_IDENTIFIER = '>!>';
+
+  /**
    * The array of command line arguments to be used by 'convert'.
    *
    * @var string[]
@@ -71,6 +76,24 @@ class ImagemagickExecArguments {
    */
   public function getArguments() {
     return $this->arguments ?: [];
+  }
+
+  /**
+   * Gets the command line arguments string for the binary.
+   *
+   * Removes any argument used internally within the toolkit.
+   *
+   * @return string
+   *   The sring of command line arguments.
+   */
+  public function getStringForBinary() {
+    if (!$this->arguments) {
+      return '';
+    }
+    $arguments_for_binary = array_filter($this->arguments, function ($argument) {
+      return strpos($argument, self::INTERNAL_ARGUMENT_IDENTIFIER) !== 0;
+    });
+    return implode(' ', $arguments_for_binary);
   }
 
   /**

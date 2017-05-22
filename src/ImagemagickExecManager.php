@@ -184,13 +184,13 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
           case 'imagemagick':
             // ImageMagick syntax:
             // identify [arguments] source
-            $cmdline = implode(' ', $arguments->getArguments()) . ' ' . $source_path;
+            $cmdline = $arguments->getStringForBinary() . ' ' . $source_path;
             break;
 
           case 'graphicsmagick':
             // GraphicsMagick syntax:
             // gm identify [arguments] source
-            $cmdline = 'identify ' . implode(' ', $arguments->getArguments()) . ' ' . $source_path;
+            $cmdline = 'identify ' . $arguments->getStringForBinary() . ' ' . $source_path;
             break;
 
         }
@@ -202,14 +202,14 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
             // ImageMagick syntax:
             // convert input [arguments] output
             // @see http://www.imagemagick.org/Usage/basics/#cmdline
-            $cmdline = $source_path . ' ' . implode(' ', $arguments->getArguments()) . ' ' . $destination_path;
+            $cmdline = $source_path . ' ' . $arguments->getStringForBinary() . ' ' . $destination_path;
             break;
 
           case 'graphicsmagick':
             // GraphicsMagick syntax:
             // gm convert [arguments] input output
             // @see http://www.graphicsmagick.org/GraphicsMagick.html
-            $cmdline = 'convert ' . implode(' ', $arguments->getArguments()) . ' '  . $source_path . ' ' . $destination_path;
+            $cmdline = 'convert ' . $arguments->getStringForBinary() . ' '  . $source_path . ' ' . $destination_path;
             break;
 
         }

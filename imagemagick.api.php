@@ -55,6 +55,11 @@ function hook_imagemagick_post_save_alter(\Drupal\imagemagick\ImagemagickExecArg
  * The toolkit provides methods to prepend, add, find, get and reset
  * arguments that have already been set by image effects.
  *
+ * In addition to arguments that are passed to the binaries command line for
+ * execution, it is possible to push arguments to be used only by the toolkit
+ * or the hooks. You can add/get/find such arguments by prepending
+ * ImagemagickExecArguments::INTERNAL_ARGUMENT_IDENTIFIER to the argument.
+ *
  * ImageMagick automatically converts the target image to the format denoted by
  * the file extension. However, since changing the file extension is not always
  * an option, you can specify an alternative image format via
