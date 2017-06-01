@@ -9,8 +9,6 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\Schema\SchemaCheckTrait;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
-// @todo change if extension mapping service gets in, see #2311679
-use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface;
 
 /**
  * Provides the ImageMagick format mapper.
@@ -29,9 +27,8 @@ class ImagemagickFormatMapper implements ImagemagickFormatMapperInterface {
 
   /**
    * The MIME type guessing service.
-   * @todo change if extension mapping service gets in, see #2311679
    *
-   * @var \Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface
+   * @var \Drupal\imagemagick\MimeTypeMapper
    */
   protected $mimeTypeMapper;
 
@@ -50,21 +47,19 @@ class ImagemagickFormatMapper implements ImagemagickFormatMapperInterface {
   protected $typedConfig;
 
   /**
-   * Constructs an ImagemagickFormatmapper object.
+   * Constructs an ImagemagickFormatMapper object.
    *
    * @param \Drupal\Core\Cache\CacheBackendInterface $cache_service
    *   The cache service.
-   * @param \Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface $mime_type_mapper
+   * @param \Drupal\imagemagick\MimeTypeMapper $mime_type_mapper
    *   The MIME type mapping service.
-   *   @todo change if extension mapping service gets in, see #2311679
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
    * @param \Drupal\Core\Config\TypedConfigManagerInterface $typed_config
    *   The typed config service.
    */
-  public function __construct(CacheBackendInterface $cache_service, MimeTypeGuesserInterface $mime_type_mapper, ConfigFactoryInterface $config_factory, TypedConfigManagerInterface $typed_config) {
+  public function __construct(CacheBackendInterface $cache_service, ImagemagickMimeTypeMapper $mime_type_mapper, ConfigFactoryInterface $config_factory, TypedConfigManagerInterface $typed_config) {
     $this->cache = $cache_service;
-    // @todo change if extension mapping service gets in, see #2311679
     $this->mimeTypeMapper = $mime_type_mapper;
     $this->configFactory = $config_factory;
     $this->typedConfig = $typed_config;
