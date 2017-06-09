@@ -79,7 +79,7 @@ class ImagemagickFormatMapper implements ImagemagickFormatMapperInterface {
     $schema_errors = $this->checkConfigSchema($this->typedConfig, 'imagemagick.settings', $data);
     if ($schema_errors !== TRUE) {
       foreach ($schema_errors as $key => $value) {
-        list($object, $path) = explode(':', $key);
+        list(, $path) = explode(':', $key);
         $components = explode('.', $path);
         if ($components[0] === 'image_formats') {
           if (isset($components[2])) {
