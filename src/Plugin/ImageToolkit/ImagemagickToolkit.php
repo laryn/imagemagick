@@ -254,6 +254,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
     // Image formats supported by the package.
     if (empty($status['errors'])) {
       $this->addArgument('-list format');
+      $output = NULL;
       $this->execManager->execute('convert', $this->arguments, $output);
       $this->resetArguments();
       $formats_info = implode('<br />', explode("\n", preg_replace('/\r/', '', Html::escape($output))));
@@ -441,7 +442,9 @@ class ImagemagickToolkit extends ImageToolkitBase {
   public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {
     try {
       // Check that the format map contains valid YAML.
-      $image_formats = Yaml::decode($form_state->getValue(['imagemagick', 'formats', 'mapping', 'image_formats']));
+      $image_formats = Yaml::decode($form_state->getValue([
+        'imagemagick', 'formats', 'mapping', 'image_formats',
+      ]));
       // Validate the enabled image formats.
       $errors = $this->formatMapper->validateMap($image_formats);
       if ($errors) {
@@ -456,7 +459,9 @@ class ImagemagickToolkit extends ImageToolkitBase {
     // it will prevent the entire image toolkit selection form from being
     // submitted.
     if ($form_state->getValue(['image_toolkit']) === 'imagemagick') {
-      $status = $this->execManager->checkPath($form_state->getValue(['imagemagick', 'suite', 'path_to_binaries']), $form_state->getValue(['imagemagick', 'suite', 'binaries']));
+      $status = $this->execManager->checkPath($form_state->getValue([
+        'imagemagick', 'suite', 'path_to_binaries',
+      ]), $form_state->getValue(['imagemagick', 'suite', 'binaries']));
       if ($status['errors']) {
         $form_state->setErrorByName('imagemagick][suite][path_to_binaries', new FormattableMarkup(implode('<br />', $status['errors']), []));
       }
@@ -469,18 +474,42 @@ class ImagemagickToolkit extends ImageToolkitBase {
   public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
     $config = $this->configFactory->getEditable('imagemagick.settings');
     $config
-      ->set('quality', (int) $form_state->getValue(['imagemagick', 'quality']))
-      ->set('binaries', (string) $form_state->getValue(['imagemagick', 'suite', 'binaries']))
-      ->set('path_to_binaries', (string) $form_state->getValue(['imagemagick', 'suite', 'path_to_binaries']))
-      ->set('use_identify', (bool) $form_state->getValue(['imagemagick', 'exec', 'use_identify']))
-      ->set('image_formats', Yaml::decode($form_state->getValue(['imagemagick', 'formats', 'mapping', 'image_formats'])))
-      ->set('prepend', (string) $form_state->getValue(['imagemagick', 'exec', 'prepend']))
-      ->set('locale', (string) $form_state->getValue(['imagemagick', 'exec', 'locale']))
-      ->set('log_warnings', (bool) $form_state->getValue(['imagemagick', 'exec', 'log_warnings']))
-      ->set('debug', (bool) $form_state->getValue(['imagemagick', 'exec', 'debug']))
-      ->set('advanced.density', (int) $form_state->getValue(['imagemagick', 'advanced', 'density']))
-      ->set('advanced.colorspace', (string) $form_state->getValue(['imagemagick', 'advanced', 'colorspace']))
-      ->set('advanced.profile', (string) $form_state->getValue(['imagemagick', 'advanced', 'profile']));
+      ->set('quality', (int) $form_state->getValue([
+          'imagemagick', 'quality',
+        ]))
+      ->set('binaries', (string) $form_state->getValue([
+          'imagemagick', 'suite', 'binaries',
+        ]))
+      ->set('path_to_binaries', (string) $form_state->getValue([
+          'imagemagick', 'suite', 'path_to_binaries',
+        ]))
+      ->set('use_identify', (bool) $form_state->getValue([
+          'imagemagick', 'exec', 'use_identify',
+        ]))
+      ->set('image_formats', Yaml::decode($form_state->getValue([
+          'imagemagick', 'formats', 'mapping', 'image_formats'
+        ])))
+      ->set('prepend', (string) $form_state->getValue([
+          'imagemagick', 'exec', 'prepend',
+        ]))
+      ->set('locale', (string) $form_state->getValue([
+          'imagemagick', 'exec', 'locale',
+        ]))
+      ->set('log_warnings', (bool) $form_state->getValue([
+          'imagemagick', 'exec', 'log_warnings',
+        ]))
+      ->set('debug', (bool) $form_state->getValue([
+          'imagemagick', 'exec', 'debug',
+        ]))
+      ->set('advanced.density', (int) $form_state->getValue([
+          'imagemagick', 'advanced', 'density',
+        ]))
+      ->set('advanced.colorspace', (string) $form_state->getValue([
+          'imagemagick', 'advanced', 'colorspace',
+        ]))
+      ->set('advanced.profile', (string) $form_state->getValue([
+          'imagemagick', 'advanced', 'profile',
+        ]));
     $config->save();
   }
 
@@ -577,7 +606,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
   /**
    * Gets the source EXIF orientation.
    *
-   * @return integer
+   * @return int
    *   The source EXIF orientation.
    */
   public function getExifOrientation() {
@@ -600,7 +629,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
   /**
    * Sets the source EXIF orientation.
    *
-   * @param integer|null $exif_orientation
+   * @param int|null $exif_orientation
    *   The EXIF orientation.
    *
    * @return $this
@@ -613,7 +642,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
   /**
    * Gets the source image number of frames.
    *
-   * @return integer
+   * @return int
    *   The number of frames of the image.
    */
   public function getFrames() {
@@ -623,7 +652,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
   /**
    * Sets the source image number of frames.
    *
-   * @param integer|null $frames
+   * @param int|null $frames
    *   The number of frames of the image.
    *
    * @return $this

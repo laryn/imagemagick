@@ -180,7 +180,7 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
 
     switch ($command) {
       case 'identify':
-        switch($this->getPackage()) {
+        switch ($this->getPackage()) {
           case 'imagemagick':
             // ImageMagick syntax:
             // identify [arguments] source
@@ -197,7 +197,7 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
         break;
 
       case 'convert':
-        switch($this->getPackage()) {
+        switch ($this->getPackage()) {
           case 'imagemagick':
             // ImageMagick syntax:
             // convert input [arguments] output
@@ -209,7 +209,7 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
             // GraphicsMagick syntax:
             // gm convert [arguments] input output
             // @see http://www.graphicsmagick.org/GraphicsMagick.html
-            $cmdline = 'convert ' . $arguments->getStringForBinary() . ' '  . $source_path . ' ' . $destination_path;
+            $cmdline = 'convert ' . $arguments->getStringForBinary() . ' ' . $source_path . ' ' . $destination_path;
             break;
 
         }

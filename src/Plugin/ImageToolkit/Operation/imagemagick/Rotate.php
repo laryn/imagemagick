@@ -71,6 +71,11 @@ class Rotate extends ImagemagickImageToolkitOperationBase {
     // the dimensions expected, calculated via the Rectangle class.
     $box = new Rectangle($this->getToolkit()->getWidth(), $this->getToolkit()->getHeight());
     $box = $box->rotate((float) $arguments['degrees']);
-    return $this->getToolkit()->apply('resize', ['width' => $box->getBoundingWidth(), 'height' => $box->getBoundingHeight(), 'filter' => $arguments['resize_filter']]);
+    return $this->getToolkit()->apply('resize', [
+      'width' => $box->getBoundingWidth(),
+      'height' => $box->getBoundingHeight(),
+      'filter' => $arguments['resize_filter'],
+    ]);
   }
+
 }

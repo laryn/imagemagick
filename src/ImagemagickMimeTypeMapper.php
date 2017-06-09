@@ -49,7 +49,7 @@ class ImagemagickMimeTypeMapper {
     if (!$this->mapping) {
       // Guess a fake file name just to ensure the guesser loads any mapping
       // alteration through the hooks.
-      $fake = $this->mimeTypeGuesser->guess('fake.png');
+      $this->mimeTypeGuesser->guess('fake.png');
       // Use Reflection to get a copy of the protected $mapping property in the
       // guesser class. Get the proxied service first, then the actual mapping.
       $reflection = new \ReflectionObject($this->mimeTypeGuesser);

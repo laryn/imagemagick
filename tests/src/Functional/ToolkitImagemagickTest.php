@@ -412,7 +412,7 @@ class ToolkitImagemagickTest extends BrowserTestBase {
 
             }
             $color = $this->getPixelColor($image, $x, $y);
-            $correct_colors = $this->colorsAreClose($color, $corner, $values['tolerance']);
+            $this->colorsAreClose($color, $corner, $values['tolerance']);
           }
         }
       }
@@ -655,7 +655,7 @@ class ToolkitImagemagickTest extends BrowserTestBase {
 
     $transparent_index = imagecolortransparent($toolkit->getResource());
     if ($color_index == $transparent_index) {
-      return array(0, 0, 0, 127);
+      return [0, 0, 0, 127];
     }
 
     return array_values(imagecolorsforindex($toolkit->getResource(), $color_index));
@@ -735,7 +735,7 @@ class ToolkitImagemagickTest extends BrowserTestBase {
     $image_uri = "public://image-test.png";
     $image = $this->imageFactory->get($image_uri);
     if (!$image->isValid()) {
-      $this->fail("Could not load image $file.");
+      $this->fail("Could not load image $image_uri.");
     }
     foreach ($arguments as $argument) {
       $image->getToolkit()->addArgument($argument);
@@ -788,7 +788,7 @@ class ToolkitImagemagickTest extends BrowserTestBase {
     $image_uri = "public://image-test.png";
     $image = $this->imageFactory->get($image_uri);
     if (!$image->isValid()) {
-      $this->fail("Could not load image $file.");
+      $this->fail("Could not load image $image_uri.");
     }
     foreach ($arguments as $argument) {
       $image->getToolkit()->addArgument($argument);

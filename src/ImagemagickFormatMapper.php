@@ -51,7 +51,7 @@ class ImagemagickFormatMapper implements ImagemagickFormatMapperInterface {
    *
    * @param \Drupal\Core\Cache\CacheBackendInterface $cache_service
    *   The cache service.
-   * @param \Drupal\imagemagick\MimeTypeMapper $mime_type_mapper
+   * @param \Drupal\imagemagick\ImagemagickMimeTypeMapper $mime_type_mapper
    *   The MIME type mapping service.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
@@ -183,7 +183,6 @@ class ImagemagickFormatMapper implements ImagemagickFormatMapperInterface {
     }
     return $enabled_image_formats;
   }
-
 
   /**
    * Returns the enabled image file extensions, processing the config map.

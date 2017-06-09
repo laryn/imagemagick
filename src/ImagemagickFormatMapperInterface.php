@@ -4,7 +4,6 @@ namespace Drupal\imagemagick;
 
 /**
  * Provides an interface for ImageMagick format mappers.
- * )
  */
 interface ImagemagickFormatMapperInterface {
 
