@@ -475,41 +475,41 @@ class ImagemagickToolkit extends ImageToolkitBase {
     $config = $this->configFactory->getEditable('imagemagick.settings');
     $config
       ->set('quality', (int) $form_state->getValue([
-          'imagemagick', 'quality',
-        ]))
+        'imagemagick', 'quality',
+      ]))
       ->set('binaries', (string) $form_state->getValue([
-          'imagemagick', 'suite', 'binaries',
-        ]))
+        'imagemagick', 'suite', 'binaries',
+      ]))
       ->set('path_to_binaries', (string) $form_state->getValue([
-          'imagemagick', 'suite', 'path_to_binaries',
-        ]))
+        'imagemagick', 'suite', 'path_to_binaries',
+      ]))
       ->set('use_identify', (bool) $form_state->getValue([
-          'imagemagick', 'exec', 'use_identify',
-        ]))
+        'imagemagick', 'exec', 'use_identify',
+      ]))
       ->set('image_formats', Yaml::decode($form_state->getValue([
-          'imagemagick', 'formats', 'mapping', 'image_formats'
-        ])))
+        'imagemagick', 'formats', 'mapping', 'image_formats',
+      ])))
       ->set('prepend', (string) $form_state->getValue([
-          'imagemagick', 'exec', 'prepend',
-        ]))
+        'imagemagick', 'exec', 'prepend',
+      ]))
       ->set('locale', (string) $form_state->getValue([
-          'imagemagick', 'exec', 'locale',
-        ]))
+        'imagemagick', 'exec', 'locale',
+      ]))
       ->set('log_warnings', (bool) $form_state->getValue([
-          'imagemagick', 'exec', 'log_warnings',
-        ]))
+        'imagemagick', 'exec', 'log_warnings',
+      ]))
       ->set('debug', (bool) $form_state->getValue([
-          'imagemagick', 'exec', 'debug',
-        ]))
+        'imagemagick', 'exec', 'debug',
+      ]))
       ->set('advanced.density', (int) $form_state->getValue([
-          'imagemagick', 'advanced', 'density',
-        ]))
+        'imagemagick', 'advanced', 'density',
+      ]))
       ->set('advanced.colorspace', (string) $form_state->getValue([
-          'imagemagick', 'advanced', 'colorspace',
-        ]))
+        'imagemagick', 'advanced', 'colorspace',
+      ]))
       ->set('advanced.profile', (string) $form_state->getValue([
-          'imagemagick', 'advanced', 'profile',
-        ]));
+        'imagemagick', 'advanced', 'profile',
+      ]));
     $config->save();
   }
 

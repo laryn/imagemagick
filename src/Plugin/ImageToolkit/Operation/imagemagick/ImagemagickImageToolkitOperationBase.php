@@ -15,8 +15,10 @@ abstract class ImagemagickImageToolkitOperationBase extends ImageToolkitOperatio
    * @return \Drupal\imagemagick\Plugin\ImageToolkit\ImagemagickToolkit
    *   The correctly typed image toolkit for imagemagick operations.
    */
+  // @codingStandardsIgnoreStart
   protected function getToolkit() {
     return parent::getToolkit();
   }
+  // @codingStandardsIgnoreEnd
 
 }

@@ -182,14 +182,18 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
       case 'identify':
         switch ($this->getPackage()) {
           case 'imagemagick':
+            // @codingStandardsIgnoreStart
             // ImageMagick syntax:
             // identify [arguments] source
+            // @codingStandardsIgnoreEnd
             $cmdline = $arguments->getStringForBinary() . ' ' . $source_path;
             break;
 
           case 'graphicsmagick':
+            // @codingStandardsIgnoreStart
             // GraphicsMagick syntax:
             // gm identify [arguments] source
+            // @codingStandardsIgnoreEnd
             $cmdline = 'identify ' . $arguments->getStringForBinary() . ' ' . $source_path;
             break;
 
@@ -199,16 +203,20 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
       case 'convert':
         switch ($this->getPackage()) {
           case 'imagemagick':
+            // @codingStandardsIgnoreStart
             // ImageMagick syntax:
             // convert input [arguments] output
             // @see http://www.imagemagick.org/Usage/basics/#cmdline
+            // @codingStandardsIgnoreEnd
             $cmdline = $source_path . ' ' . $arguments->getStringForBinary() . ' ' . $destination_path;
             break;
 
           case 'graphicsmagick':
+            // @codingStandardsIgnoreStart
             // GraphicsMagick syntax:
             // gm convert [arguments] input output
             // @see http://www.graphicsmagick.org/GraphicsMagick.html
+            // @codingStandardsIgnoreEnd
             $cmdline = 'convert ' . $arguments->getStringForBinary() . ' ' . $source_path . ' ' . $destination_path;
             break;
 
@@ -349,6 +357,7 @@ class ImagemagickExecManager implements ImagemagickExecManagerInterface {
           $context['@raw'] = implode("\n", $tmp);
         }
       }
+      // @codingStandardsIgnoreLine
       drupal_set_message($this->t($message, $context), 'status', TRUE);
     }
   }
