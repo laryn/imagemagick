@@ -13,6 +13,13 @@ class ImagemagickExecArguments {
   const INTERNAL_ARGUMENT_IDENTIFIER = '>!>';
 
   /**
+   * The ImageMagick execution manager service.
+   *
+   * @var \Drupal\imagemagick\ImagemagickExecManagerInterface
+   */
+  protected $execManager;
+
+  /**
    * The array of command line arguments to be used by 'convert'.
    *
    * @var string[]
@@ -67,6 +74,16 @@ class ImagemagickExecArguments {
    * @var string
    */
   protected $destinationFormat = '';
+
+  /**
+   * Constructs an ImagemagickExecArguments object.
+   *
+   * @param \Drupal\imagemagick\ImagemagickExecManagerInterface $exec_manager
+   *   The ImageMagick execution manager service.
+   */
+  public function __construct(ImagemagickExecManagerInterface $exec_manager) {
+    $this->execManager = $exec_manager;
+  }
 
   /**
    * Gets the command line arguments for the binary.
@@ -347,6 +364,20 @@ class ImagemagickExecArguments {
    */
   public function getDestinationFormat() {
     return $this->destinationFormat;
+  }
+
+  /**
+   * Escapes a string.
+   *
+   * @param string $arg
+   *   The string to escape.
+   *
+   * @return string
+   *   An escaped string for use in the
+   *   ImagemagickExecManagerInterface::execute method.
+   */
+  public function escapeShellArg($arg) {
+    return $this->execManager->escapeShellArg($arg);
   }
 
 }

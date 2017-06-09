@@ -204,7 +204,7 @@ class ImagemagickIdentify extends FileMetadataPluginBase {
    *   NULL otherwise.
    */
   protected function identify() {
-    $arguments = new ImagemagickExecArguments();
+    $arguments = new ImagemagickExecArguments($this->execManager);
 
     // Add source file.
     $arguments->setSource($this->getLocalTempPath());

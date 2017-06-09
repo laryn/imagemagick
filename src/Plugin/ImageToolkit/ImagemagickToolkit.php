@@ -129,7 +129,7 @@ class ImagemagickToolkit extends ImageToolkitBase {
     $this->formatMapper = $format_mapper;
     $this->fileMetadataManager = $file_metadata_manager;
     $this->execManager = $exec_manager;
-    $this->arguments = new ImagemagickExecArguments();
+    $this->arguments = new ImagemagickExecArguments($this->execManager);
   }
 
   /**
