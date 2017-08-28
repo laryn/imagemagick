@@ -9,8 +9,35 @@
  * Implements hook_uninstall().
  */
 function imagemagick_advanced_uninstall() {
-  variable_del('imagemagick_advanced_density');
-  variable_del('imagemagick_advanced_colorspace');
-  variable_del('imagemagick_advanced_profile');
+  config_clear('imagemagick_advanced.settings', 'imagemagick_advanced_density');
+  config_clear('imagemagick_advanced.settings', 'imagemagick_advanced_colorspace');
+  config_clear('imagemagick_advanced.settings', 'imagemagick_advanced_profile');
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function imagemagick_advanced_update_last_removed() {
+  return;
+}
+
+/**
+ * Implements hook_update_N().
+ */
+function imagemagick_advanced_update_1000() {
+  $config = config('imagemagick_advanced.settings');
+  $config->set('imagemagick_advanced_density', update_variable_get('imagemagick_advanced_density', 'novalue'));
+  $config->set('imagemagick_advanced_colorspace', update_variable_get('imagemagick_advanced_colorspace', 'novalue'));
+  $config->set('imagemagick_advanced_profile', update_variable_get('imagemagick_advanced_profile', ''));
+  update_variable_del('imagemagick_advanced_density');
+  update_variable_del('imagemagick_advanced_colorspace');
+  update_variable_del('imagemagick_advanced_profile');
+}
+
+/**
+ * Implements hook_install().
+ */
+function imagemagick_advanced_install() {
+  // Dynamically generated variable data was detected.
 }
 

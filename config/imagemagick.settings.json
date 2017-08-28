@@ -1,0 +1,10 @@
+{
+    "_config_name": "imagemagick.settings",
+    "imageapi_imagemagick_quality": "NULL",
+    "imageapi_imagemagick_convert": "NULL",
+    "imageapi_imagemagick_debugging": "NULL",
+    "imagemagick_quality": "75",
+    "imagemagick_gm": "novalue",
+    "imagemagick_convert": "NULL",
+    "imagemagick_debug": "FALSE"
+}

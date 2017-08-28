@@ -9,47 +9,49 @@
  * Implements hook_install().
  */
 function imagemagick_install() {
+  $config = config('imagemagick.settings');
   // Migrate ImageAPI ImageMagick variables upon installation.
-  $value = variable_get('imageapi_imagemagick_quality', NULL);
+  $value = $config->get('imageapi_imagemagick_quality');
   if (!empty($value)) {
-    variable_set('imagemagick_quality', $value);
+    config_set('imagemagick.settings', 'imagemagick_quality', $value);
   }
-  variable_del('imageapi_imagemagick_quality');
+  config_clear('imagemagick.settings', 'imageapi_imagemagick_quality');
 
-  $value = variable_get('imageapi_imagemagick_convert', NULL);
+  $value = $config->get('imageapi_imagemagick_convert');
   if (!empty($value)) {
-    variable_set('imagemagick_convert', $value);
+    config_set('imagemagick.settings', 'imagemagick_convert', $value);
 
     // If we have a convert path and previous toolkit was ImageAPI's
     // ImageMagick, also switch the toolkit.
-    $value = variable_get('image_toolkit', 'gd');
+    $value = config_get('system.performance', 'image_toolkit');
     if ($value == 'imageapi_imagemagick') {
-      variable_set('image_toolkit', 'imagemagick');
+      config_set('system.performance', 'image_toolkit', 'imagemagick');
     }
   }
-  variable_del('imageapi_imagemagick_convert');
+  config_clear('imagemagick.settings', 'imageapi_imagemagick_convert');
 
-  $value = variable_get('imageapi_imagemagick_debugging', NULL);
+  $value = $config->get('imageapi_imagemagick_debugging');
   if (!empty($value)) {
-    variable_set('imagemagick_debug', $value);
+    config_set('imagemagick.settings', 'imagemagick_debug', $value);
   }
-  variable_del('imageapi_imagemagick_debugging');
+  config_clear('imagemagick.settings', 'imageapi_imagemagick_debugging');
 
   // Disable ImageAPI ImageMagick module if it is enabled to avoid confusion.
   if (module_exists('imageapi_imagemagick')) {
     module_disable(array('imageapi_imagemagick'));
-    drupal_set_message(t('ImageAPI ImageMagick module has been disabled.'));
+    backdrop_set_message(t('ImageAPI ImageMagick module has been disabled.'));
   }
+  // Dynamically generated variable data was detected on the following lines.
 }
 
 /**
  * Implements hook_uninstall().
  */
 function imagemagick_uninstall() {
-  variable_del('imagemagick_quality');
-  variable_del('imagemagick_convert');
-  variable_del('imagemagick_debug');
-  variable_del('imagemagick_gm');
+  config_clear('imagemagick.settings', 'imagemagick_quality');
+  config_clear('imagemagick.settings', 'imagemagick_convert');
+  config_clear('imagemagick.settings', 'imagemagick_debug');
+  config_clear('imagemagick.settings', 'imagemagick_gm');
 }
 
 /**
@@ -57,5 +59,33 @@ function imagemagick_uninstall() {
  */
 function imagemagick_update_last_removed() {
   return 7000;
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function imagemagick_update_last_removed() {
+  return;
+}
+
+/**
+ * Implements hook_update_N().
+ */
+function imagemagick_update_1000() {
+  $config = config('imagemagick.settings');
+  $config->set('imageapi_imagemagick_quality', update_variable_get('imageapi_imagemagick_quality', 'NULL'));
+  $config->set('imageapi_imagemagick_convert', update_variable_get('imageapi_imagemagick_convert', 'NULL'));
+  $config->set('imageapi_imagemagick_debugging', update_variable_get('imageapi_imagemagick_debugging', 'NULL'));
+  $config->set('imagemagick_quality', update_variable_get('imagemagick_quality', '75'));
+  $config->set('imagemagick_gm', update_variable_get('imagemagick_gm', 'novalue'));
+  $config->set('imagemagick_convert', update_variable_get('imagemagick_convert', 'NULL'));
+  $config->set('imagemagick_debug', update_variable_get('imagemagick_debug', 'FALSE'));
+  update_variable_del('imageapi_imagemagick_quality');
+  update_variable_del('imageapi_imagemagick_convert');
+  update_variable_del('imageapi_imagemagick_debugging');
+  update_variable_del('imagemagick_quality');
+  update_variable_del('imagemagick_gm');
+  update_variable_del('imagemagick_convert');
+  update_variable_del('imagemagick_debug');
 }
 

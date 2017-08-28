@@ -6,9 +6,20 @@
  */
 
 /**
+ * Implements hook_config_info().
+ */
+function imagemagick_advanced_config_info() {
+  $prefixes['imagemagick_advanced.settings'] = array(
+    'label' => t('Module name settings'),
+    'group' => t('Configuration'),
+  );
+}
+
+/**
  * Implements hook_form_FORMID_alter().
  */
 function imagemagick_advanced_form_system_image_toolkit_settings_alter(&$form, &$form_state, $form_id) {
+  $config = config('imagemagick_advanced.settings');
   if (image_get_toolkit() != 'imagemagick') {
     return;
   }
@@ -17,7 +28,7 @@ function imagemagick_advanced_form_system_image_toolkit_settings_alter(&$form, &
   $im_form['imagemagick_advanced_density'] = array(
     '#type' => 'checkbox',
     '#title' => t('Change image resolution to 72 ppi'),
-    '#default_value' => variable_get('imagemagick_advanced_density', 0),
+    '#default_value' => $config->get('imagemagick_advanced_density'),
     '#return_value' => 72,
     '#description' => t('Resamples the image <a href="@help-url">density</a> to a resolution of 72 pixels per inch, the default for web images. Does not affect the pixel size or quality.', array(
       '@help-url' => 'http://www.imagemagick.org/script/command-line-options.php#density',
@@ -26,7 +37,7 @@ function imagemagick_advanced_form_system_image_toolkit_settings_alter(&$form, &
   $im_form['imagemagick_advanced_colorspace'] = array(
     '#type' => 'select',
     '#title' => t('Convert colorspace'),
-    '#default_value' => variable_get('imagemagick_advanced_colorspace', 0),
+    '#default_value' => $config->get('imagemagick_advanced_colorspace'),
     '#options' => array(
       'RGB' => 'RGB',
       'sRGB' => 'sRGB',
@@ -46,7 +57,7 @@ function imagemagick_advanced_form_system_image_toolkit_settings_alter(&$form, &
   $im_form['imagemagick_advanced_profile'] = array(
     '#type' => 'textfield',
     '#title' => t('Color profile path'),
-    '#default_value' => variable_get('imagemagick_advanced_profile', ''),
+    '#default_value' => $config->get('imagemagick_advanced_profile'),
     '#description' => t('The path to a <a href="@help-url">color profile</a> file that all processed images will be converted to. Leave blank to disable. Use a <a href="@color-url">sRGB profile</a> to correct the display of professional images and photography.', array(
       '@help-url' => 'http://www.imagemagick.org/script/command-line-options.php#profile',
       '@color-url' => 'http://www.color.org/profiles.html',
@@ -58,18 +69,19 @@ function imagemagick_advanced_form_system_image_toolkit_settings_alter(&$form, &
  * Implements hook_imagemagick_arguments_alter().
  */
 function imagemagick_advanced_imagemagick_arguments_alter(&$args, $context) {
+  $config = config('imagemagick_advanced.settings');
   // Change image density.
-  if ($density = (int) variable_get('imagemagick_advanced_density', 0)) {
+  if ($density = (int) $config->get('imagemagick_advanced_density')) {
     $args['density'] = "-density {$density} -units PixelsPerInch";
   }
   // Apply color profile.
-  if ($profile = variable_get('imagemagick_advanced_profile', '')) {
+  if ($profile = $config->get('imagemagick_advanced_profile')) {
     if (file_exists($profile)) {
       $args['profile'] = '-profile ' . escapeshellarg($profile);
     }
   }
   // Or alternatively apply colorspace.
-  elseif ($colorspace = variable_get('imagemagick_advanced_colorspace', 0)) {
+  elseif ($colorspace = $config->get('imagemagick_advanced_colorspace')) {
     // Do not hi-jack desaturate effect.
     if (array_search('-colorspace GRAY', $args) === FALSE) {
       $args['colorspace'] = '-colorspace ' . escapeshellarg($colorspace);
@@ -148,7 +160,7 @@ function image_imagemagick_sharpen(stdClass $image, $radius = 0.5, $sigma = 0.5,
  * @see image_watermark()
  */
 function image_imagemagick_watermark(stdClass $image, $watermark) {
-  $image->ops[] = drupal_realpath($watermark) . '-composite -set ' . escapeshellarg('option:compose:outside-overlay') . ' false';
+  $image->ops[] = backdrop_realpath($watermark) . '-composite -set ' . escapeshellarg('option:compose:outside-overlay') . ' false';
   return TRUE;
 }
 
